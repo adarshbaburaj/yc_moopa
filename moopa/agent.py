@@ -398,7 +398,7 @@ class Agent:
         self.gate = MicGate()
         self.phone_voice = PhoneVoice() if voice_on_phone else None
         if voice_on_phone:
-            self.gate.tail_s = 0.5  # the phone buffers a little: wait for it before listening again
+            self.gate.tail_s = float(os.getenv("MOOPA_ECHO_TAIL_S", "0.7"))  # phone speaker lags: its echo must not count as speech
         self.loop: asyncio.AbstractEventLoop | None = None
         self.worker: PipelineWorker | None = None
         self.transcript_hooks = []  # callables(text) -> bool; True = consumed (fall check uses this)
@@ -680,6 +680,8 @@ class Agent:
         stt = DeepgramSTTService(
             api_key=os.environ["DEEPGRAM_API_KEY"],
             settings=DeepgramSTTService.Settings(
+                model="nova-3", language="en-US", smart_format=True, punctuate=True,
+                endpointing=int(os.getenv("MOOPA_ENDPOINT_MS", "600")),  # older speakers pause mid-sentence
                 keyterm=list(dict.fromkeys(
                     [k for k in [os.getenv("GRANDSON_NAME", "").strip(), "grandson", "grandpa", "yoga mat",
                                  "Amazon", "WhatsApp", "video call", "checkout", "Moopa", "go ahead"] if k]
@@ -704,8 +706,10 @@ class Agent:
         context = LLMContext(tools=ToolsSchema(standard_tools=TOOLS))
         agg = LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(
             # volume floor 0.6 -> 0.3: quiet or distant speech still counts as speech
+            # stop_secs 0.3 -> 0.8: a short pause no longer ends the turn ("Order" ... "a yoga mat")
             vad_analyzer=SileroVADAnalyzer(params=VADParams(confidence=0.6, start_secs=0.15,
-                                                            stop_secs=0.3, min_volume=0.3))))
+                                                            stop_secs=float(os.getenv("MOOPA_STOP_S", "0.8")),
+                                                            min_volume=0.3))))
 
         pipeline = Pipeline([
             self.transport.input(),

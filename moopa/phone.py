@@ -622,12 +622,16 @@ def _video_call(number: str, who: str) -> str:
                 h.tap_node(hits[0])
                 _log(f"Tapped {q} in WhatsApp")
                 time.sleep(1.5)
-                # WhatsApp may ask "Start video call?"
-                for c in ("Call", "Start", "Video call"):
-                    if h.find_nodes(c, exact=True, clickable_only=True):
-                        h.tap_ui(c, exact=True, clickable_only=True)
-                        break
-                return f"Video calling {who} on WhatsApp."
+                # WhatsApp may ask "Start video call?". Only a dialog's own button: never the
+                # chat's "Video call" icon again (that placed a second call after a cancel).
+                try:
+                    for c in ("Call", "Start"):
+                        if h.find_nodes(c, exact=True, clickable_only=True):
+                            h.tap_ui(c, exact=True, clickable_only=True)
+                            break
+                except Exception as e:
+                    console.log(f"[phone] confirm dialog check: {e}")
+                return f"Video calling {who} on WhatsApp."  # tapped once: never fall through to the navigator
     except Exception as e:
         console.log(f"[phone] video fast path failed: {e}")
     return run_task(f"In the open WhatsApp chat, start a video call with {who} (the camera icon at the top).",
