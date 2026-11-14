@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moopa · Family view</title>
+<style>
+  :root {
+    --bg: #f4f1ec; --card: #ffffff; --ink: #1d1b18; --muted: #6d665c; --line: #e4ded4;
+    --ok: #1f7a4d; --ok-bg: #e3f2e9; --warn: #b26a00; --warn-bg: #fff1d6;
+    --bad: #c62828; --bad-bg: #fde7e7; --accent: #5b3fd1;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  body.alert { background: #b71c1c; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 24px 40px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand b { font-size: 22px; letter-spacing: -0.02em; }
+  .brand span { color: var(--muted); }
+  body.alert .brand b, body.alert .brand span { color: #fff; }
+  .dot { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--accent), #2f80ed, #e0559b, var(--accent)); }
+  .devices { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dev { font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--muted); }
+  .dev.on { color: var(--ok); border-color: #bfe0cc; }
+  .dev.sim { color: var(--warn); border-color: #f0d49a; }
+
+  .status { border-radius: 18px; padding: 26px 28px; display: flex; align-items: center; gap: 22px;
+            background: var(--ok-bg); border: 1px solid #c4e3d1; margin-bottom: 18px; }
+  .status .big { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; color: var(--ok); }
+  .status .why { color: var(--muted); font-size: 18px; }
+  .status.checking { background: var(--warn-bg); border-color: #f0d49a; }
+  .status.checking .big { color: var(--warn); }
+  .status.alert { background: #fff; border: 4px solid #fff; animation: pulse 1s ease-in-out infinite alternate; }
+  .status.alert .big { color: var(--bad); font-size: 52px; }
+  .status.alert .why { color: var(--ink); font-size: 20px; }
+  .status.alert .icon { background: var(--bad); color: #fff; font-weight: 800; }
+  .status.checking .icon { background: var(--warn); color: #fff; font-weight: 800; }
+  .status.ok .icon { background: var(--ok); color: #fff; }
+  @keyframes pulse { from { box-shadow: 0 0 0 0 rgba(255,255,255,.0); } to { box-shadow: 0 0 0 14px rgba(255,255,255,.35); } }
+  .status .icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; background: #fff; flex: none; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 18px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .card h2 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: none; }
+  .vital { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .vital .n { font-size: 54px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .vital .u { color: var(--muted); font-size: 18px; }
+  .vital .l { margin-left: auto; color: var(--muted); }
+  .heart { color: var(--bad); display: inline-block; animation: beat 0.85s ease-in-out infinite; }
+  @keyframes beat { 0%,100% { transform: scale(1); } 15% { transform: scale(1.25); } 30% { transform: scale(1); } }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
+  .tag.live { background: var(--ok-bg); color: var(--ok); }
+  .tag.simulated { background: var(--warn-bg); color: var(--warn); }
+  .tag.none { background: #eee; color: var(--muted); }
+  .fine { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row b { font-size: 22px; font-variant-numeric: tabular-nums; }
+
+  .timeline { max-height: 470px; overflow-y: auto; }
+  .ev { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .ev time { color: var(--muted); font-size: 12px; padding-top: 3px; font-variant-numeric: tabular-nums; }
+  .ev .who { font-weight: 600; margin-right: 6px; }
+  .ev.transcript .who { color: #2f6fd6; }
+  .ev.agent .who { color: var(--accent); }
+  .ev.action .who { color: #0f766e; }
+  .ev.fall .who, .ev.alert .who { color: var(--bad); }
+  .ev.judge .who { color: #8a5a00; }
+  .ev.alert { background: var(--bad-bg); }
+  .pending { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #efeafe; color: #3b2a8f; display: none; }
+  .controls { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+  button { font: inherit; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
+  button.danger { color: var(--bad); }
+  body.alert .controls button { background: #fff; }
+  .offline { color: var(--bad); font-weight: 600; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="dot"></div><div><b>Moopa</b><br><span>Family view · live from the band, ring and phone</span></div></div>
+    <div class="devices" id="devices"></div>
+  </header>
+
+  <div class="status" id="status">
+    <div class="icon" id="icon">✓</div>
+    <div><div class="big" id="big">All good</div><div class="why" id="why">Moopa is watching over them.</div></div>
+  </div>
+  <p class="offline" id="offline">Lost connection to Moopa. Retrying…</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Vitals from the ring <span class="tag none" id="src">NO READINGS</span></h2>
+      <div class="vital"><span class="heart">♥</span><span class="n" id="hr">–</span><span class="u">bpm</span><span class="l">Heart rate</span></div>
+      <div class="vital"><span class="n" id="spo2">–</span><span class="u">%</span><span class="l">Blood oxygen</span></div>
+      <div class="fine" id="age">Waiting for the ring.</div>
+      <div class="fine">Wellness readings, not a medical device.</div>
+    </div>
+    <div class="card">
+      <h2>Today, from the band</h2>
+      <div class="row"><span>Steps</span><b id="steps">0</b></div>
+      <div class="row"><span>Active</span><b id="active">0 min</b></div>
+      <div class="row"><span>Still</span><b id="still">0 min</b></div>
+      <div class="row"><span>Falls detected</span><b id="falls">0</b></div>
+      <div class="pending" id="pending"></div>
+    </div>
+    <div class="card">
+      <h2>What Moopa heard and did</h2>
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button onclick="act('double_tap')">Double-tap band</button>
+    <button class="danger" onclick="act('fall')">Pretend fall</button>
+    <button onclick="act('cancel')">Clear alert</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const WHO = { transcript: "Elder", agent: "Moopa", action: "Phone", fall: "Fall", alert: "ALERT",
+              judge: "System One", band: "Band", vitals: "Ring", system: "System" };
+const SHOW = new Set(["transcript", "agent", "action", "fall", "alert", "judge", "vitals"]);
+const seen = new Set();
+
+function hhmm(ts) { const d = new Date(ts * 1000); return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function addEvent(ev) {
+  if (!ev || !SHOW.has(ev.kind)) return;
+  const key = ev.ts + ev.kind + ev.text;
+  if (seen.has(key)) return; seen.add(key);
+  const div = document.createElement("div");
+  div.className = "ev " + ev.kind;
+  const text = ev.kind === "transcript" ? `“${esc(ev.text)}”` : esc(ev.text);
+  div.innerHTML = `<time>${hhmm(ev.ts)}</time><div><span class="who">${WHO[ev.kind] || ev.kind}</span>${text}</div>`;
+  $("timeline").prepend(div);
+  while ($("timeline").children.length > 80) $("timeline").lastChild.remove();
+}
+
+function render(s) {
+  // status
+  const st = s.status || "OK", box = $("status");
+  box.className = "status " + st.toLowerCase();
+  document.body.classList.toggle("alert", st === "ALERT");
+  if (st === "ALERT") {
+    $("icon").textContent = "!";
+    $("big").textContent = "Needs help now";
+    const a = s.alert || {};
+    $("why").textContent = (a.reason || "Possible fall, no answer") + " · Moopa is calling family.";
+  } else if (st === "CHECKING") {
+    $("icon").textContent = "?";
+    $("big").textContent = "Checking on them";
+    $("why").textContent = "Possible fall. Moopa asked “Are you okay?” and is listening for 10 seconds.";
+  } else {
+    $("icon").textContent = "✓";
+    $("big").textContent = "All good";
+    $("why").textContent = s.awake ? "Moopa is listening to them right now." : "Moopa is watching over them.";
+  }
+  // vitals
+  const v = s.vitals || {};
+  $("hr").textContent = v.heart_rate ?? "–";
+  $("spo2").textContent = v.spo2 ?? "–";
+  const src = $("src");
+  if (v.source === "ring") { src.className = "tag live"; src.textContent = "LIVE FROM RING"; }
+  else if (v.source === "simulated") { src.className = "tag simulated"; src.textContent = "SIMULATED"; }
+  else { src.className = "tag none"; src.textContent = "NO READINGS"; }
+  $("age").textContent = v.ts ? `Updated ${Math.max(0, Math.round(Date.now() / 1000 - v.ts))} s ago` : "Waiting for the ring.";
+  // activity
+  const a = s.activity || {};
+  $("steps").textContent = (a.steps || 0).toLocaleString();
+  $("active").textContent = Math.floor((a.active_s || 0) / 60) + " min";
+  $("still").textContent = Math.floor((a.still_s || 0) / 60) + " min";
+  $("falls").textContent = a.falls || 0;
+  // pending yes/no
+  const p = s.pending_confirmation;
+  $("pending").style.display = p ? "block" : "none";
+  if (p) $("pending").textContent = "Waiting for a spoken yes: " + (p.question || p.goal);
+  // devices
+  const d = s.devices || {};
+  const label = { band: "Band", ring: "Ring", phone: "Phone", mic: "Mic", speaker: "Voice" };
+  $("devices").innerHTML = Object.keys(label).filter(k => d[k]).map(k => {
+    const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) ? "on" : val === "sim" ? "sim" : "";
+    const txt = k === "ring" && val === "sim" ? "SIMULATED" : k === "band" && val === "sim" ? "pretend" : val;
+    return `<span class="dev ${cls}">${label[k]}: ${esc(txt)}</span>`;
+  }).join("");
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/state"); const j = await r.json();
+    render(j.state); (j.events || []).forEach(addEvent);
+    $("offline").style.display = "none";
+  } catch (e) { $("offline").style.display = "block"; }
+}
+function listen() {
+  const es = new EventSource("/events");
+  es.onmessage = m => { const j = JSON.parse(m.data); if (j.state) render(j.state); if (j.event) addEvent(j.event); };
+  es.onerror = () => { es.close(); setTimeout(listen, 2000); };
+}
+async function act(name) { await fetch("/action/" + name, { method: "POST" }); }
+
+poll(); listen(); setInterval(poll, 2000);
+</script>
+</body>
+</html>

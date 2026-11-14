@@ -1,6 +1,7 @@
 """Start Moopa. Every part can run without the others.
 
   python run.py                        sim band, Mac mic, sim ring, camera on, real phone
+  python run.py --band real --ring real  real band + real COLMI ring (falls back to SIMULATED vitals)
   python run.py --no-phone --no-camera print phone actions instead of doing them
   python run.py --band real --mic band real band (number from BAND_NUMBER in .env)
 
@@ -106,6 +107,11 @@ async def main():
         band.fall_hooks.append(falls.trigger)
         band.start()
 
+    if args.ring != "off":
+        from moopa.ring import RingLink
+
+        RingLink(args.ring).start()
+
     def pretend_fall():
         if band and band.band and band.sim:
             band.sim_fall()  # goes through the band's real free-fall + stillness logic
@@ -153,6 +159,10 @@ async def main():
                 items.append((f"Band {os.getenv('BAND_NUMBER', '?')}" + (" (pretend)" if args.band == "sim" else ""),
                               d.get("band") in ("on", "sim") and bool(d.get("fall_sensor")),
                               "double-tap the band (blinking blue), keep it close"))
+            if args.ring != "off":
+                live = d.get("ring") == "on"
+                items.append(("Ring" if live else "Ring (SIMULATED)", d.get("ring") in ("on", "sim"),
+                              "charge the ring, keep it close, close the QRing app"))
             ok = all(i[1] for i in items)
             late = time.monotonic() - start > 25
             if ok or late:

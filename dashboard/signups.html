@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moopa · Early interest</title>
+<style>
+  :root { --bg: #f4f1ec; --card: #fff; --ink: #1d1b18; --muted: #6d665c; --line: #e4ded4; --bar: #5b3fd1; --bar-soft: #e9e3fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 24px 40px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header b { font-size: 24px; letter-spacing: -0.02em; display: block; }
+  header span, .muted { color: var(--muted); }
+  .hero { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 28px; display: flex; gap: 28px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .hero .n { font-size: 96px; font-weight: 750; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hero .t { font-size: 22px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } .hero .n { font-size: 72px; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .card h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 12px; margin: 10px 0; }
+  .track { height: 26px; background: var(--bar-soft); border-radius: 4px; overflow: hidden; }
+  .fill { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .val { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  svg text { font: 12px -apple-system, BlinkMacSystemFont, sans-serif; fill: var(--muted); }
+  .quote { border-left: 3px solid var(--bar); padding: 6px 0 6px 14px; margin: 12px 0; font-size: 18px; }
+  .quote small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .tip { position: fixed; pointer-events: none; background: var(--ink); color: #fff; padding: 6px 10px; border-radius: 8px; font-size: 13px; display: none; }
+  footer { margin-top: 18px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><b>Moopa · Early interest</b><span>Families and care agencies who want Moopa for an elder they love</span></div>
+    <span id="updated"></span>
+  </header>
+
+  <div class="hero">
+    <div class="n" id="hero-n">–</div>
+    <div><div class="t" id="hero-t">sign-ups on the Moopa interest form</div><div class="muted" id="hero-s"></div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>From first message to sign-up</h2>
+      <div id="funnel"></div>
+      <h2 style="margin-top:26px">Sign-ups over the day</h2>
+      <svg id="line" viewBox="0 0 560 190" width="100%" role="img" aria-label="Cumulative sign-ups over time"></svg>
+    </div>
+    <div class="card">
+      <h2>Who signed up</h2>
+      <div id="who"></div>
+      <div id="quotes"></div>
+      <h2 style="margin-top:22px">Responses (names and emails hidden)</h2>
+      <table><thead><tr><th>Time (PT)</th><th>Relation</th><th>Elder lives in</th></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+  </div>
+  <footer>Real responses only, from our Google Form and outreach tracker. Nothing here is projected or simulated.</footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const tip = $("tip");
+function hover(el, text) {
+  el.addEventListener("mousemove", e => { tip.style.display = "block"; tip.textContent = text; tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; });
+  el.addEventListener("mouseleave", () => tip.style.display = "none");
+}
+function bars(host, rows) {
+  const max = Math.max(1, ...rows.map(r => r[1]));
+  host.innerHTML = "";
+  rows.forEach(([label, n, note]) => {
+    const row = document.createElement("div"); row.className = "bar-row";
+    row.innerHTML = `<span>${esc(label)}</span><div class="track"><div class="fill" style="width:${(n / max) * 100}%"></div></div><span class="val">${n}</span>`;
+    hover(row, note || `${label}: ${n}`);
+    host.appendChild(row);
+  });
+}
+function line(signups) {
+  const svg = $("line"), W = 560, H = 190, L = 34, B = 26, T = 10, R = 12;
+  const pts = signups.map(s => new Date(s.ts.replace(" ", "T"))).filter(d => !isNaN(d)).sort((a, b) => a - b);
+  if (pts.length < 2) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">The line appears after the second response</text>`; return; }
+  const t0 = +pts[0], t1 = +pts[pts.length - 1] || t0 + 1, n = pts.length;
+  const x = t => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R), y = v => H - B - (v / n) * (H - B - T);
+  let d = `M${x(t0)},${y(0)}`; pts.forEach((p, i) => { d += ` H${x(+p)} V${y(i + 1)}`; });
+  const fmt = p => p.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  svg.innerHTML = `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" stroke="#e4ded4"/>
+    <text x="${L}" y="${H - 6}">${fmt(pts[0])}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${fmt(pts[n - 1])}</text>
+    <text x="${L - 6}" y="${y(n) + 4}" text-anchor="end">${n}</text><text x="${L - 6}" y="${H - B}" text-anchor="end">0</text>
+    <path d="${d}" fill="none" stroke="#5b3fd1" stroke-width="2"/>` +
+    pts.map((p, i) => `<circle cx="${x(+p)}" cy="${y(i + 1)}" r="5" fill="#5b3fd1" stroke="#fff" stroke-width="2"><title>${fmt(p)}: ${i + 1} sign-ups</title></circle>`).join("");
+}
+async function load() {
+  const j = await (await fetch("signups.json", { cache: "no-store" })).json();
+  const s = j.signups || [], reached = (j.outreach || []).reduce((a, o) => a + o.reached, 0);
+  $("updated").textContent = "Updated " + (j.updated || "");
+  $("hero-n").textContent = s.length;
+  $("hero-t").textContent = s.length === 1 ? "sign-up on the Moopa interest form" : "sign-ups on the Moopa interest form";
+  $("hero-s").textContent = `${reached} families and care agencies reached today` + (j.wants_it ? ` · ${j.wants_it} want one now` : "");
+  bars($("funnel"), [["Reached", reached, (j.outreach || []).map(o => `${o.channel}: ${o.reached}`).join(" · ")],
+                     ["Signed up", s.length], ["Want one now", j.wants_it || 0], ["Paid a deposit", j.deposits || 0]]);
+  line(s);
+  const rel = {}; s.forEach(r => { const k = r.relation || "Not said"; rel[k] = (rel[k] || 0) + 1; });
+  const relRows = Object.entries(rel).sort((a, b) => b[1] - a[1]);
+  if (relRows.length) bars($("who"), relRows); else $("who").innerHTML = `<p class="muted">Responses will show here.</p>`;
+  $("quotes").innerHTML = (j.quotes || []).map(q => `<div class="quote">“${esc(q.text)}”<small>${esc(q.who)}</small></div>`).join("");
+  $("rows").innerHTML = s.map(r => `<tr><td>${esc(r.ts)}</td><td>${esc(r.relation)}</td><td>${esc(r.where)}</td></tr>`).join("");
+}
+load(); setInterval(load, 10000);
+</script>
+</body>
+</html>

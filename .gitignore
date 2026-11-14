@@ -12,3 +12,9 @@ tools/jdk/
 tools/android-sdk/
 halo-app/build/
 halo-app/debug.keystore
+tools/ffmpeg/
+clips/*
+!clips/README.md
+video/assets/clips/
+video/renders/
+video/node_modules/

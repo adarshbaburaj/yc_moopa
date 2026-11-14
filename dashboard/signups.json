@@ -1,0 +1,13 @@
+{
+  "_note": "Real numbers only. Counts come from the 'Moopa pre-order tracker' sheet and the 'Moopa interest form' responses. No names or emails here: this file is public.",
+  "updated": "2026-11-14 14:50 PT",
+  "form_link": "",
+  "outreach": [
+    {"channel": "Care agencies (email)", "reached": 20},
+    {"channel": "Professor referral", "reached": 1}
+  ],
+  "signups": [],
+  "wants_it": 0,
+  "deposits": 0,
+  "quotes": []
+}

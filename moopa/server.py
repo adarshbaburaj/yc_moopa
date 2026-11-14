@@ -20,6 +20,16 @@ def index():
     return FileResponse(DASH)
 
 
+@app.get("/signups")
+def signups_page():
+    return FileResponse(DASH.parent / "signups.html")
+
+
+@app.get("/signups.json")
+def signups_data():
+    return FileResponse(DASH.parent / "signups.json")
+
+
 @app.get("/state")
 def get_state():
     return JSONResponse(state.snapshot())
