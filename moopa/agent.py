@@ -376,7 +376,7 @@ def make_llm():
                 model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), system_instruction=persona()))
     return OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"],
                             settings=OpenAILLMService.Settings(
-                                model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-luna",
+                                model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-sol",  # larger GPT-6; ~1.4 s with tools
                                 system_instruction=persona(),
                                 # gpt-6-luna refuses tools + reasoning on /chat/completions
                                 extra={"reasoning_effort": os.getenv("OPENAI_REASONING", "none")}))
