@@ -420,14 +420,18 @@ class Agent:
 
     # ---- redial guard: a call needs a fresh spoken request. Without this the LLM re-issued
     # call_contact on a later turn ("thanks", "hang up the call", or call audio picked up by the mic).
-    _ASK_CALL = re.compile(r"\b(call|ring|dial|phone|video)\b", re.I)
+    _ASK_CALL = re.compile(r"\b(call\w*|ring|dial|phone|video|talk|speak|reach|whatsapp|facetime|contact)\b", re.I)
     _NOT_CALL = re.compile(r"\b(hang|end|stop|cancel|cut|bye|goodbye|finish|done)\b", re.I)
     _last_call_ts = 0.0
 
     def _fresh_call_request(self) -> bool:
+        if not self._last_call_ts:
+            return True  # first call of the session: trust the model (speech-to-text may mishear "call")
         said = [e["text"] for e in state.snapshot()["events"]
                 if e["kind"] == "transcript" and e["ts"] > self._last_call_ts]
-        return any(self._ASK_CALL.search(t) and not self._NOT_CALL.search(t) for t in said[-2:])
+        names = [n for n in phone.contact_names() if len(n) > 2]
+        asks = lambda t: self._ASK_CALL.search(t) or any(n in t.lower() for n in names)  # noqa: E731
+        return any(asks(t) and not self._NOT_CALL.search(t) for t in said[-2:])
 
     async def _guard_call(self, p: FunctionCallParams) -> bool:
         if not self._fresh_call_request():
@@ -547,6 +551,10 @@ class Agent:
         self.loop.call_soon_threadsafe(self._wake, greet, remember, hold)
 
     def _wake(self, greet, remember=False, hold=False):
+        if hold and time.time() - self._last_call_ts < 6:
+            # the mic closed by itself when the call started: a "stop listening" double-tap must not reopen it
+            state.emit("system", "Double-tap ignored: call just started, mic is already off")
+            return
         self.gate.held = self.gate.held or hold
         span = MAX_LISTEN_S if hold else AWAKE_SECS
         self.gate.awake_until = max(self.gate.awake_until, time.monotonic() + span)

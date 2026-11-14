@@ -11,6 +11,7 @@ from collections import deque
 
 _lock = threading.RLock()
 _subscribers: list[tuple[asyncio.AbstractEventLoop, asyncio.Queue]] = []
+version = 0  # bumped on every state change, so the server can stream changes that have no event
 _listeners: list = []  # plain callables(event) run in the emitter's thread: keep them tiny
 
 state = {
@@ -53,12 +54,17 @@ def update(path: str, value) -> None:
         *parents, last = path.split(".")
         for p in parents:
             d = d[p]
+        if d.get(last) != value:
+            global version
+            version += 1
         d[last] = value
 
 
 def merge(section: str, values: dict) -> None:
+    global version
     with _lock:
         state[section].update(values)
+        version += 1
 
 
 def get(path: str):

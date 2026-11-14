@@ -357,6 +357,7 @@ class FallResponder:
             return "Alert marked, but there is no contact to call."
         who, num = hit
         self.agent.say(CALL_LINE)
+        self.agent.stop_listening("Mic off: calling family")  # the call's audio must not reach the agent
 
         def call():
             try:

@@ -51,13 +51,21 @@ async def events():
     async def gen():
         try:
             yield f"data: {json.dumps({'kind': 'hello'})}\n\n"
+            sent, quiet = -1, 0.0
             while True:
-                try:
-                    ev = await asyncio.wait_for(q.get(), timeout=15)
-                    snap = state.snapshot()["state"]
-                    yield f"data: {json.dumps({'event': ev, 'state': snap})}\n\n"
+                try:  # events go out at once; state changes with no event (vitals, steps, awake) within 0.25 s
+                    ev = await asyncio.wait_for(q.get(), timeout=0.25)
+                    sent, quiet = state.version, 0.0
+                    yield f"data: {json.dumps({'event': ev, 'state': state.snapshot()['state']})}\n\n"
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    if state.version != sent:
+                        sent, quiet = state.version, 0.0
+                        yield f"data: {json.dumps({'state': state.snapshot()['state']})}\n\n"
+                    else:
+                        quiet += 0.25
+                        if quiet >= 15:
+                            quiet = 0.0
+                            yield ": ping\n\n"
         finally:
             state.unsubscribe(q)
 
