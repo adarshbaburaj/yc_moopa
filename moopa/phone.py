@@ -112,6 +112,21 @@ def check() -> bool:
     return bool(devs)
 
 
+def ready() -> str | None:
+    """Wake the screen; None if the phone can be driven, else a sentence for the agent to say."""
+    if dry_run:
+        return None
+    try:
+        adb("input", "keyevent", "KEYCODE_WAKEUP")
+        out = adb("dumpsys", "window")
+    except Exception as e:
+        return f"I can't reach the phone right now ({str(e)[:60]})."
+    if "isKeyguardShowing=true" in out or "mShowingLockscreen=true" in out:
+        state.emit("action", "Phone is locked: asked the elder to unlock it")
+        return "The phone is locked. Ask them kindly to unlock their phone, then you'll try again."
+    return None
+
+
 # ---------- fast paths ----------
 
 def call_number(number: str, who: str = "") -> None:

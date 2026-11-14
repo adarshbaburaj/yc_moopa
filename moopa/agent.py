@@ -318,7 +318,16 @@ class Agent:
         self.transport = SDTransport(params, self.gate, use_mac_mic=use_mac_mic)
 
     # ---- tool handlers (each returns a short string the agent speaks from)
+    async def _phone_ready(self, p: FunctionCallParams) -> bool:
+        msg = await asyncio.to_thread(phone.ready)
+        if msg:
+            await p.result_callback(msg)
+            return False
+        return True
+
     async def _call_contact(self, p: FunctionCallParams):
+        if not await self._phone_ready(p):
+            return
         hit = phone.find_contact(p.arguments.get("name", ""))
         if not hit:
             await p.result_callback("I don't have that person in the contacts.")
@@ -334,6 +343,8 @@ class Agent:
             await p.result_callback(f"The call did not go through: {e}")
 
     async def _video_call(self, p: FunctionCallParams):
+        if not await self._phone_ready(p):
+            return
         hit = phone.find_contact(p.arguments.get("name", ""))
         if not hit:
             await p.result_callback("I don't have that person in the contacts.")
@@ -345,6 +356,8 @@ class Agent:
         await p.result_callback(r)
 
     async def _phone_task(self, p: FunctionCallParams):
+        if not await self._phone_ready(p):
+            return
         if not self.navigator:
             await p.result_callback("The phone helper is not set up yet.")
             return
@@ -459,7 +472,10 @@ class Agent:
                          ("phone_task", self._phone_task), ("get_vitals", self._vitals),
                          ("get_today_summary", self._summary), ("alert_caregiver", self._alert),
                          ("end_call", self._end_call)]:
-            llm.register_function(name, fn, timeout_secs=180 if name in ("phone_task", "video_call_contact") else None)
+            phone_tool = name in ("call_contact", "video_call_contact", "phone_task", "alert_caregiver", "end_call")
+            # a phone action must never be cut off halfway because someone spoke or double-tapped
+            llm.register_function(name, fn, cancel_on_interruption=not phone_tool,
+                                  timeout_secs=180 if name in ("phone_task", "video_call_contact") else None)
 
         context = LLMContext(tools=ToolsSchema(standard_tools=TOOLS))
         agg = LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(
