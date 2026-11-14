@@ -20,9 +20,9 @@
     #brain-dot { z-index: 0; position: absolute; left: 950px; top: 492px; width: 20px; height: 20px; border-radius: 10px; background: #7c4dff; }
   </style>
   <div id="root" data-composition-id="brain" data-width="1920" data-height="1080">
-    <div id="brain-q" class="clip" data-start="0" data-duration="2.3" data-track-index="1"><span class="w">Who </span><span class="w">did </span><span class="w">all </span><span class="w">that?</span></div>
+    <div id="brain-q" class="clip" data-start="0" data-duration="1.8" data-track-index="1"><span class="w">Who </span><span class="w">did </span><span class="w">all </span><span class="w">that?</span></div>
 
-    <div id="brain-world" class="clip" data-start="1.9" data-duration="22.1" data-track-index="2" data-layout-allow-overflow>
+    <div id="brain-world" class="clip" data-start="1.5" data-duration="15.5" data-track-index="2" data-layout-allow-overflow>
       <div id="brain-route">
         <div id="brain-line"></div>
         <!-- one stop per part; the same request travels through all of them -->
@@ -76,7 +76,7 @@
     const tl = gsap.timeline({ paused: true });
     document.querySelectorAll("#brain-q .w").forEach((w, i) =>
       tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, 0.15 + i * 0.09));
-    tl.to("#brain-q .w", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 1.9);
+    tl.to("#brain-q .w", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 1.5);
 
     // waveform for the first stop
     const env = [0.25,0.5,0.85,0.6,0.95,0.7,0.4,0.8,1,0.65,0.35,0.6,0.9,0.5,0.3,0.55,0.75,0.45,0.25,0.15];
@@ -85,7 +85,7 @@
     const bars = wv.querySelectorAll("i");
 
     // camera: the route slides; each stop holds ~2.75 s
-    const STOP = 1600, T0 = 1.9, HOLD = 3.1, MOVE = 0.8;
+    const STOP = 1600, T0 = 1.5, HOLD = 2.15, MOVE = 0.55;
     tl.fromTo("#brain-route", { x: 1920 }, { x: 0, duration: MOVE, ease: "power2.inOut" }, T0);
     for (let i = 1; i < 7; i++) {
       tl.to("#brain-route", { x: -STOP * i, duration: MOVE, ease: "power2.inOut" }, T0 + i * HOLD);

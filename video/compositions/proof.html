@@ -11,24 +11,24 @@
   </style>
   <div id="root" data-composition-id="proof" data-width="1920" data-height="1080">
     <!-- real numbers: Moopa interest form (8 responses) + outreach log, 14 Nov 2026 -->
-    <div id="pf-1" class="pf clip" data-start="0" data-duration="3.6" data-track-index="1"><div class="n" id="pf-1n">8</div><div class="t">signed up today<span class="s">including my professor and the person<br />who sat next to me at the hackathon</span></div></div>
-    <div id="pf-2" class="pf clip" data-start="3.6" data-duration="3.2" data-track-index="2"><div class="n acc">4</div><div class="t">would pay $10<br />to reserve one<span class="s">of the 8, refundable</span></div></div>
-    <div id="pf-3" class="pf clip" data-start="6.8" data-duration="3.6" data-track-index="3"><div class="n" id="pf-3n">21</div><div class="t">care agencies<br />emailed<span class="s">Top asks: fall alerts, heart-rate trends</span></div></div>
-    <div id="pf-src" class="clip" data-start="0.3" data-duration="10.1" data-track-index="4">Real responses, Moopa interest form and outreach log, 14 Nov 2026.</div>
+    <div id="pf-1" class="pf clip" data-start="0.00" data-duration="2.99" data-track-index="1"><div class="n" id="pf-1n">8</div><div class="t">signed up today<span class="s">including my professor and the person<br />who sat next to me at the hackathon</span></div></div>
+    <div id="pf-2" class="pf clip" data-start="2.99" data-duration="2.66" data-track-index="2"><div class="n acc">4</div><div class="t">would pay $10<br />to reserve one<span class="s">of the 8, refundable</span></div></div>
+    <div id="pf-3" class="pf clip" data-start="5.64" data-duration="2.99" data-track-index="3"><div class="n" id="pf-3n">21</div><div class="t">care agencies<br />emailed<span class="s">Top asks: fall alerts, heart-rate trends</span></div></div>
+    <div id="pf-src" class="clip" data-start="0.25" data-duration="8.38" data-track-index="4">Real responses, Moopa interest form and outreach log, 14 Nov 2026.</div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
     const c1 = { v: 0 }, c3 = { v: 0 };
-    tl.fromTo(c1, { v: 0 }, { v: 8, duration: 0.7, ease: "expo.out", onUpdate: () => (document.getElementById("pf-1n").textContent = Math.round(c1.v)) }, 0.1);
-    tl.fromTo("#pf-1 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 0.3);
-    tl.to("#pf-1 > *", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 3.4);
-    tl.fromTo("#pf-2 .n", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 3.65);
-    tl.fromTo("#pf-2 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 3.85);
-    tl.to("#pf-2 > *", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 6.6);
-    tl.fromTo(c3, { v: 0 }, { v: 21, duration: 0.8, ease: "expo.out", onUpdate: () => (document.getElementById("pf-3n").textContent = Math.round(c3.v)) }, 6.85);
-    tl.fromTo("#pf-3 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 7.05);
-    tl.fromTo("#pf-src", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.4);
-    tl.to("#pf-3 > *, #pf-src", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 10.2);
+    tl.fromTo(c1, { v: 0 }, { v: 8, duration: 0.7, ease: "expo.out", onUpdate: () => (document.getElementById("pf-1n").textContent = Math.round(c1.v)) }, 0.08);
+    tl.fromTo("#pf-1 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 0.25);
+    tl.to("#pf-1 > *", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 2.82);
+    tl.fromTo("#pf-2 .n", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "expo.out" }, 3.03);
+    tl.fromTo("#pf-2 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 3.20);
+    tl.to("#pf-2 > *", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 5.48);
+    tl.fromTo(c3, { v: 0 }, { v: 21, duration: 0.8, ease: "expo.out", onUpdate: () => (document.getElementById("pf-3n").textContent = Math.round(c3.v)) }, 5.69);
+    tl.fromTo("#pf-3 .t", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 5.85);
+    tl.fromTo("#pf-src", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.33);
+    tl.to("#pf-3 > *, #pf-src", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 8.47);
     window.__timelines["proof"] = tl;
   </script>
 </template>

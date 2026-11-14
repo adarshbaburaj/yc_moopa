@@ -9,25 +9,25 @@
     #ns-d { position: absolute; left: 160px; right: 160px; top: 690px; text-align: center; font-size: 40px; color: #6d665c; }
   </style>
   <div id="root" data-composition-id="nosiri" data-width="1920" data-height="1080">
-    <div id="ns-ink" class="clip" data-start="0" data-duration="3.4" data-track-index="1"></div>
-    <div id="ns-a" class="clip" data-start="0.25" data-duration="1.45" data-track-index="2"><span class="w">No </span><span class="w">Bixby.</span></div>
-    <div id="ns-b" class="clip" data-start="1.75" data-duration="1.55" data-track-index="3"><span class="w">No </span><span class="w">Siri.</span></div>
-    <div id="ns-c" class="clip" data-start="3.45" data-duration="3.05" data-track-index="4"><span class="w">Moopa </span><span class="w">reads </span><span class="w">the </span><span class="w">screen</span><br /><span class="w">and </span><span class="w">taps, </span><span class="w acc">like </span><span class="w acc">you </span><span class="w acc">do.</span></div>
-    <div id="ns-d" class="clip" data-start="4.1" data-duration="2.4" data-track-index="5">Any app. No assistant needed.</div>
+    <div id="ns-ink" class="clip" data-start="0.00" data-duration="2.79" data-track-index="1"></div>
+    <div id="ns-a" class="clip" data-start="0.20" data-duration="1.19" data-track-index="2"><span class="w">No </span><span class="w">Bixby.</span></div>
+    <div id="ns-b" class="clip" data-start="1.43" data-duration="1.27" data-track-index="3"><span class="w">No </span><span class="w">Siri.</span></div>
+    <div id="ns-c" class="clip" data-start="2.83" data-duration="2.50" data-track-index="4"><span class="w">Moopa </span><span class="w">reads </span><span class="w">the </span><span class="w">screen</span><br /><span class="w">and </span><span class="w">taps, </span><span class="w acc">like </span><span class="w acc">you </span><span class="w acc">do.</span></div>
+    <div id="ns-d" class="clip" data-start="3.36" data-duration="1.97" data-track-index="5">Any app. No assistant needed.</div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
     const inWords = (sel, t, gap) => document.querySelectorAll(sel).forEach((w, i) =>
       tl.fromTo(w, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out" }, t + i * gap));
-    tl.fromTo("#ns-ink", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.4, ease: "power2.inOut" }, 0);
-    inWords("#ns-a .w", 0.3, 0.16);
-    tl.to("#ns-a .w", { opacity: 0, filter: "blur(10px)", duration: 0.15, ease: "power3.in" }, 1.52);
-    inWords("#ns-b .w", 1.8, 0.16);
-    tl.to("#ns-b .w", { opacity: 0, filter: "blur(10px)", duration: 0.15, ease: "power3.in" }, 3.1);
-    tl.to("#ns-ink", { clipPath: "circle(0% at 50% 50%)", duration: 0.35, ease: "power2.inOut" }, 3.05);
-    inWords("#ns-c .w", 3.5, 0.08);
-    tl.fromTo("#ns-d", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 4.15);
-    tl.to("#ns-c .w, #ns-d", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 6.3);
+    tl.fromTo("#ns-ink", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.4, ease: "power2.inOut" }, 0.00);
+    inWords("#ns-a .w", 0.25, 0.16);
+    tl.to("#ns-a .w", { opacity: 0, filter: "blur(10px)", duration: 0.15, ease: "power3.in" }, 1.25);
+    inWords("#ns-b .w", 1.48, 0.16);
+    tl.to("#ns-b .w", { opacity: 0, filter: "blur(10px)", duration: 0.15, ease: "power3.in" }, 2.54);
+    tl.to("#ns-ink", { clipPath: "circle(0% at 50% 50%)", duration: 0.35, ease: "power2.inOut" }, 2.50);
+    inWords("#ns-c .w", 2.87, 0.08);
+    tl.fromTo("#ns-d", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 3.40);
+    tl.to("#ns-c .w, #ns-d", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, 5.17);
     window.__timelines["nosiri"] = tl;
   </script>
 </template>
