@@ -343,6 +343,9 @@ TOOLS = [
     FunctionSchema("phone_task", "Do a free-form task on the phone screen, like shopping for an item "
                    "or opening an app. Stops before any purchase and returns what needs confirming.",
                    {"goal": {"type": "string", "description": "The goal in plain words"}}, ["goal"]),
+    FunctionSchema("shop_for", "Find an item on Amazon and put it in the cart, e.g. 'get me a yoga mat'. "
+                   "Never buys: returns the item and price to confirm with the elder.",
+                   {"item": {"type": "string", "description": "What to buy, in a few words"}}, ["item"]),
     FunctionSchema("get_vitals", "Latest heart rate and blood oxygen from the ring.", {}, []),
     FunctionSchema("get_today_summary", "Today's steps, active and still time, and any falls.", {}, []),
     FunctionSchema("alert_caregiver", "Raise an alert to family/caregiver and call the first contact. "
@@ -437,6 +440,12 @@ class Agent:
             return
         r = await self.navigator(p.arguments.get("goal", ""))
         await p.result_callback(r)
+
+    async def _shop(self, p: FunctionCallParams):
+        if not await self._phone_ready(p):
+            return
+        item = p.arguments.get("item", "").strip() or "item"
+        await p.result_callback(await asyncio.to_thread(phone.shop, item))
 
     async def _vitals(self, p: FunctionCallParams):
         v = state.get("vitals")
@@ -543,13 +552,14 @@ class Agent:
                                      voice=os.getenv("MOOPA_VOICE", "aura-2-thalia-en")))
         llm = make_llm()
         for name, fn in [("call_contact", self._call_contact), ("video_call_contact", self._video_call),
-                         ("phone_task", self._phone_task), ("get_vitals", self._vitals),
+                         ("phone_task", self._phone_task), ("shop_for", self._shop), ("get_vitals", self._vitals),
                          ("get_today_summary", self._summary), ("alert_caregiver", self._alert),
                          ("end_call", self._end_call)]:
-            phone_tool = name in ("call_contact", "video_call_contact", "phone_task", "alert_caregiver", "end_call")
+            phone_tool = name in ("call_contact", "video_call_contact", "phone_task", "shop_for",
+                                  "alert_caregiver", "end_call")
             # a phone action must never be cut off halfway because someone spoke or double-tapped
             llm.register_function(name, fn, cancel_on_interruption=not phone_tool,
-                                  timeout_secs=180 if name in ("phone_task", "video_call_contact") else None)
+                                  timeout_secs=180 if name in ("phone_task", "video_call_contact", "shop_for") else None)
 
         context = LLMContext(tools=ToolsSchema(standard_tools=TOOLS))
         agg = LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(

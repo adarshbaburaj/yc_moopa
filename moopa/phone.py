@@ -537,6 +537,28 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
     return "I could not finish that on the phone. It may need a person to look."
 
 
+def shop(item: str) -> str:
+    """Fast path for shopping: open Amazon's search results by link (skips open/tap/type), then let
+    the navigator choose one and add it to the cart. Never buys (FORBIDDEN still applies)."""
+    from urllib.parse import quote_plus
+
+    if dry_run:
+        _log(f"(dry-run) Amazon search: {item}")
+        return f"(dry run) I would add a {item} to the Amazon cart."
+    with working(linger=1.5):
+        domain = os.getenv("AMAZON_DOMAIN", "amazon.ae")
+        _log(f'Searching Amazon for "{item}"')
+        adb("am", "start", "-a", "android.intent.action.VIEW", "-d",
+            f"https://www.{domain}/s?k={quote_plus(item)}", "-p", APPS["amazon"])
+        try:
+            _helpers().wait_for_app(APPS["amazon"], timeout=8)
+        except Exception:
+            pass
+        return _run_task(f"Add one {item} to the cart", max_steps=8,
+                         extra="The Amazon app is already open on the search results for this item. "
+                               "Do not search again: pick a well-rated, reasonably priced one and add it.")
+
+
 def video_call(number: str, who: str) -> str:
     """Open the WhatsApp chat (fast path), then press the video icon via its content description."""
     with working(linger=3):
