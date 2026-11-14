@@ -171,6 +171,19 @@ def working(linger: float = 0.0):
             off()
 
 
+def start_phone_voice(port: int = 8770) -> bool:
+    """Route the laptop's voice server to the phone (adb reverse) and start the app's speaker."""
+    if dry_run:
+        return False
+    try:
+        adb("--raw", "reverse", f"tcp:{port}", f"tcp:{port}")
+        adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "voice")
+        return True
+    except Exception as e:
+        print(f"[voice] phone speaker not available ({str(e)[:100]}); using the Mac speakers")
+        return False
+
+
 # ---------- fast paths ----------
 
 def call_number(number: str, who: str = "") -> None:

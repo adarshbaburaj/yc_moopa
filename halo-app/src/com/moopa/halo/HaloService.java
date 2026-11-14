@@ -9,6 +9,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Canvas;
+import android.media.AudioAttributes;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
+import android.media.AudioFormat;
+import android.media.AudioTrack;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
@@ -22,11 +27,19 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
 
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
 /** Draws an animated glowing border over every app while Moopa works. Touches pass through. */
 public class HaloService extends Service {
     private static final String CHANNEL = "halo";
+    private static final int VOICE_PORT = 8770;
+    private static final int VOICE_RATE = 24000;
     private WindowManager wm;
     private HaloView view;
+    private volatile boolean voiceOn = false;
+    private Thread voiceThread;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -39,8 +52,12 @@ public class HaloService extends Service {
         String action = intent == null ? "show" : intent.getAction();
         if ("hide".equals(action)) {
             removeHalo();
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+            stopIfIdle();
+        } else if ("voice".equals(action)) {
+            startVoice();
+        } else if ("voice_off".equals(action)) {
+            voiceOn = false;
+            stopIfIdle();
         } else {
             showHalo();
         }
@@ -49,8 +66,66 @@ public class HaloService extends Service {
 
     @Override
     public void onDestroy() {
+        voiceOn = false;
         removeHalo();
         super.onDestroy();
+    }
+
+    private void stopIfIdle() {
+        if (view == null && !voiceOn) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
+            stopSelf();
+        }
+    }
+
+    /** Moopa's speaker: keep a connection to the laptop (via adb reverse) and play what arrives. */
+    private void startVoice() {
+        if (voiceOn) return;
+        voiceOn = true;
+        voiceThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int minBuf = AudioTrack.getMinBufferSize(VOICE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT);
+                AudioTrack track = new AudioTrack.Builder()
+                        .setAudioAttributes(new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                        .setAudioFormat(new AudioFormat.Builder()
+                                .setSampleRate(VOICE_RATE)
+                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
+                        .setBufferSizeInBytes(Math.max(minBuf, VOICE_RATE))  // ~0.5 s
+                        .setTransferMode(AudioTrack.MODE_STREAM)
+                        .build();
+                // Moopa speaks from the phone itself, even if Bluetooth headphones/speakers are connected
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+                    if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                        track.setPreferredDevice(d);
+                        break;
+                    }
+                }
+                track.play();
+                byte[] buf = new byte[4096];
+                while (voiceOn) {
+                    try (Socket sock = new Socket()) {
+                        sock.connect(new InetSocketAddress("127.0.0.1", VOICE_PORT), 2000);
+                        sock.setTcpNoDelay(true);
+                        InputStream in = sock.getInputStream();
+                        int n;
+                        while (voiceOn && (n = in.read(buf)) > 0) {
+                            track.write(buf, 0, n & ~1);
+                        }
+                    } catch (Exception e) {
+                        try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
+                    }
+                }
+                track.stop();
+                track.release();
+            }
+        }, "moopa-voice");
+        voiceThread.start();
     }
 
     private void startAsForeground() {
@@ -62,7 +137,8 @@ public class HaloService extends Service {
             nm.createNotificationChannel(ch);
         }
         Notification n = new Notification.Builder(this, CHANNEL)
-                .setContentTitle("Moopa is working on your phone")
+                .setContentTitle("Moopa")
+                .setContentText("Your helper is connected")
                 .setSmallIcon(android.R.drawable.star_on)
                 .setOngoing(true)
                 .build();

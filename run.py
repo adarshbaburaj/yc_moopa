@@ -32,6 +32,8 @@ def parse():
                     help="real = the band numbered BAND_NUMBER in .env")
     ap.add_argument("--mic", choices=["band", "mac"], default="mac")
     ap.add_argument("--ring", choices=["real", "sim", "off"], default="sim")
+    ap.add_argument("--voice", choices=["phone", "mac"], default="phone",
+                    help="where the agent speaks: the phone's speaker (halo-app) or the Mac")
     ap.add_argument("--no-camera", action="store_true")
     ap.add_argument("--no-phone", action="store_true", help="print phone actions instead of doing them")
     ap.add_argument("--port", type=int, default=8765)
@@ -77,7 +79,8 @@ async def main():
 
     if args.mic == "band" and args.band == "off":
         sys.exit("--mic band needs a band: use --band real or --band sim")
-    agent = Agent(use_mac_mic=(args.mic == "mac"))
+    voice_phone = args.voice == "phone" and not args.no_phone and phone.check() and phone.start_phone_voice()
+    agent = Agent(use_mac_mic=(args.mic == "mac"), voice_on_phone=bool(voice_phone))
     agent.navigator = phone.navigate
     falls = FallResponder(agent)
     agent.on_alert = falls.alert
@@ -113,7 +116,8 @@ async def main():
     port = server.free_port(args.port)
     if port != args.port:
         print(f"[server] port {args.port} is busy (an old run.py still open?) -> using {port}")
-    print(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic}")
+    print(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic} | "
+          f"voice: {'phone speaker' if voice_phone else 'Mac'}")
     print(f"Dashboard: http://127.0.0.1:{port}   |   SPACE = start/stop listening, d = double-tap, f = pretend fall, "
           f"c = cancel alert, q = quit")
 

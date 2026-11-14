@@ -62,10 +62,56 @@ class MicGate:
         self.awake_until = 0.0
         self.bot_speaking = False
         self.held = False  # opened by a double-tap: stays open until the next one
+        self.quiet_until = 0.0  # speaker tail (phone audio is buffered): don't hear ourselves
+        self.tail_s = 0.2
 
     @property
     def open(self) -> bool:
-        return (not self.bot_speaking) and time.monotonic() < self.awake_until
+        now = time.monotonic()
+        return (not self.bot_speaking) and now >= self.quiet_until and now < self.awake_until
+
+
+VOICE_PORT = 8770
+
+
+class PhoneVoice:
+    """The phone app (halo-app, action "voice") connects here through `adb reverse tcp:8770 tcp:8770`
+    and plays the agent's 24 kHz mono 16-bit audio on the phone's speaker."""
+
+    def __init__(self):
+        self.writer = None
+        self.server = None
+
+    async def start(self):
+        if self.server is None:
+            self.server = await asyncio.start_server(self._client, "127.0.0.1", VOICE_PORT)
+
+    async def _client(self, reader, writer):
+        if self.writer:
+            self.writer.close()
+        self.writer = writer
+        state.update("devices.speaker", "phone")
+        state.emit("system", "Phone speaker connected")
+        try:
+            await reader.read()  # returns when the phone disconnects
+        finally:
+            if self.writer is writer:
+                self.writer = None
+                state.update("devices.speaker", "mac")
+                state.emit("system", "Phone speaker disconnected (using the Mac)")
+
+    @property
+    def connected(self) -> bool:
+        return self.writer is not None and not self.writer.is_closing()
+
+    async def send(self, data: bytes) -> bool:
+        try:
+            self.writer.write(data)
+            await self.writer.drain()
+            return True
+        except Exception:
+            self.writer = None
+            return False
 
 
 class SDInput(BaseInputTransport):
@@ -132,19 +178,34 @@ class SDInput(BaseInputTransport):
 
 
 class SDOutput(BaseOutputTransport):
-    def __init__(self, params: TransportParams, device=None):
+    """Agent voice: the phone's speaker when the phone app is connected, else the Mac."""
+
+    def __init__(self, params: TransportParams, device=None, phone: "PhoneVoice | None" = None):
         super().__init__(params)
         self._device = device
         self._stream = None
+        self._phone = phone
+        self._play_head = 0.0
 
     async def start(self, frame: StartFrame):
         await super().start(frame)
         self._stream = sd.RawOutputStream(samplerate=self.sample_rate, channels=1, dtype="int16",
                                           device=self._device)
         self._stream.start()
+        if self._phone:
+            await self._phone.start()
         await self.set_transport_ready(frame)
 
     async def write_audio_frame(self, frame: OutputAudioRawFrame) -> bool:
+        if self._phone and self._phone.connected:
+            # pace in real time (at most 0.25 s ahead) so "bot speaking" matches what the phone plays
+            now = time.monotonic()
+            self._play_head = max(self._play_head, now) + len(frame.audio) / (2 * frame.sample_rate)
+            if await self._phone.send(frame.audio):
+                ahead = self._play_head - time.monotonic()
+                if ahead > 0.25:
+                    await asyncio.sleep(ahead - 0.25)
+                return True
         if self._stream:
             await asyncio.to_thread(self._stream.write, frame.audio)
             return True
@@ -159,7 +220,7 @@ class SDOutput(BaseOutputTransport):
 
 
 class SDTransport(BaseTransport):
-    def __init__(self, params: TransportParams, gate: MicGate, use_mac_mic=True):
+    def __init__(self, params: TransportParams, gate: MicGate, use_mac_mic=True, phone_voice=None):
         super().__init__()
         def pick(var, kind):
             want = os.getenv(var) or None
@@ -177,7 +238,7 @@ class SDTransport(BaseTransport):
         outd = pick("MOOPA_OUT_DEVICE", "output")
         self._in = SDInput(params, gate, device=int(ind) if ind and ind.isdigit() else ind,
                            use_mac_mic=use_mac_mic)
-        self._out = SDOutput(params, device=int(outd) if outd and outd.isdigit() else outd)
+        self._out = SDOutput(params, device=int(outd) if outd and outd.isdigit() else outd, phone=phone_voice)
 
     def input(self):
         return self._in
@@ -200,6 +261,7 @@ class BotSpeechWatch(FrameProcessor):
             self._gate.bot_speaking = True
         elif isinstance(frame, BotStoppedSpeakingFrame):
             self._gate.bot_speaking = False
+            self._gate.quiet_until = time.monotonic() + self._gate.tail_s
             if time.monotonic() < self._gate.awake_until + 2:  # was a conversation: allow a follow-up
                 self._gate.awake_until = max(self._gate.awake_until, time.monotonic() + FOLLOW_UP_SECS)
         await self.push_frame(frame, direction)
@@ -304,8 +366,11 @@ def make_llm():
 
 
 class Agent:
-    def __init__(self, use_mac_mic: bool = True):
+    def __init__(self, use_mac_mic: bool = True, voice_on_phone: bool = False):
         self.gate = MicGate()
+        self.phone_voice = PhoneVoice() if voice_on_phone else None
+        if voice_on_phone:
+            self.gate.tail_s = 0.8  # the phone buffers ~0.5 s: wait for it before listening again
         self.loop: asyncio.AbstractEventLoop | None = None
         self.worker: PipelineWorker | None = None
         self.transcript_hooks = []  # callables(text) -> bool; True = consumed (fall check uses this)
@@ -315,7 +380,7 @@ class Agent:
 
         params = TransportParams(audio_in_enabled=True, audio_out_enabled=True,
                                  audio_in_sample_rate=16000, audio_out_sample_rate=24000)
-        self.transport = SDTransport(params, self.gate, use_mac_mic=use_mac_mic)
+        self.transport = SDTransport(params, self.gate, use_mac_mic=use_mac_mic, phone_voice=self.phone_voice)
 
     # ---- tool handlers (each returns a short string the agent speaks from)
     async def _phone_ready(self, p: FunctionCallParams) -> bool:
