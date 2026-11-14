@@ -3,6 +3,7 @@ decide in code. No answer within REPLY_S -> alert family (call) + dashboard goes
 
 Truth table (decided here, not by a model):
   asks_help >= 0.7                      -> ALERT now
+  says_ok < 0.3 and asks_help >= 0.5    -> ALERT now (e.g. "No, I'm not okay")
   says_ok >= 0.7 and asks_help < 0.3    -> cancel (they're fine)
   anything else (unclear)               -> keep waiting; at the deadline -> ALERT
   double-tap on the band                -> cancel
@@ -67,8 +68,13 @@ def judge_reply(reply: str) -> tuple[float, float, str]:
     return (0.9 if ok else 0.1), (0.9 if help_ else 0.1), "keywords"
 
 
+LEAN = 0.5
+
+
 def decide(p_ok: float, p_help: float) -> str:
     if p_help >= YES:
+        return "alert"
+    if p_ok < NO and p_help >= LEAN:  # clearly not "I'm okay", and leaning towards needing help
         return "alert"
     if p_ok >= YES and p_help < NO:
         return "cancel"
