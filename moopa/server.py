@@ -53,8 +53,25 @@ async def events():
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+def free_port(start: int = 8765) -> int:
+    import socket
+
+    for port in range(start, start + 20):
+        with socket.socket() as s:
+            try:
+                s.bind(("127.0.0.1", port))
+                return port
+            except OSError:
+                continue
+    return start
+
+
 async def serve(port: int = 8765):
+    """Never takes the agent down: a server problem is printed, not raised."""
     import uvicorn
 
-    cfg = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    await uvicorn.Server(cfg).serve()
+    try:
+        cfg = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+        await uvicorn.Server(cfg).serve()
+    except (SystemExit, Exception) as e:
+        print(f"[server] dashboard stopped: {e!r} (agent keeps running)")

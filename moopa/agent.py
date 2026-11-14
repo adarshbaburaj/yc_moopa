@@ -279,6 +279,28 @@ TOOLS = [
 ]
 
 
+def llm_provider() -> str:
+    return os.getenv("LLM_PROVIDER", "openai").strip().lower()
+
+
+def make_llm():
+    """LLM_PROVIDER=openai (default) | gemini (Vertex AI with the gcloud login)."""
+    if llm_provider() == "gemini":
+        from pipecat.services.google.vertex.llm import GoogleVertexLLMService
+
+        return GoogleVertexLLMService(
+            project_id=os.environ["GOOGLE_CLOUD_PROJECT"],
+            location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
+            settings=GoogleVertexLLMService.Settings(
+                model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), system_instruction=persona()))
+    return OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"],
+                            settings=OpenAILLMService.Settings(
+                                model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-luna",
+                                system_instruction=persona(),
+                                # gpt-6-luna refuses tools + reasoning on /chat/completions
+                                extra={"reasoning_effort": os.getenv("OPENAI_REASONING", "none")}))
+
+
 class Agent:
     def __init__(self, use_mac_mic: bool = True):
         self.gate = MicGate()
@@ -353,18 +375,18 @@ class Agent:
         await p.result_callback("Call ended.")
 
     # ---- control (thread-safe; callable from band/keyboard threads)
-    def wake(self, greet: str | None = "I'm listening.") -> None:
+    def wake(self, greet: str | None = "I'm listening.", remember: bool = False) -> None:
         if not self.loop:
             return
-        self.loop.call_soon_threadsafe(self._wake, greet)
+        self.loop.call_soon_threadsafe(self._wake, greet, remember)
 
-    def _wake(self, greet):
+    def _wake(self, greet, remember=False):
         self.gate.awake_until = time.monotonic() + AWAKE_SECS
         if not state.get("awake"):
             state.update("awake", True)
             state.emit("system", "Listening")
         if greet:
-            self.say(greet)
+            self.say(greet, remember=remember)
 
     def say(self, text: str, remember: bool = False) -> None:
         if self.loop and self.worker:
@@ -407,12 +429,7 @@ class Agent:
         tts = DeepgramTTSService(api_key=os.environ["DEEPGRAM_API_KEY"],
                                  settings=DeepgramTTSService.Settings(
                                      voice=os.getenv("MOOPA_VOICE", "aura-2-thalia-en")))
-        llm = OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"],
-                               settings=OpenAILLMService.Settings(
-                                   model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-luna",
-                                   system_instruction=persona(),
-                                   # gpt-6-luna refuses tools + reasoning on /chat/completions
-                                   extra={"reasoning_effort": os.getenv("OPENAI_REASONING", "none")}))
+        llm = make_llm()
         for name, fn in [("call_contact", self._call_contact), ("video_call_contact", self._video_call),
                          ("phone_task", self._phone_task), ("get_vitals", self._vitals),
                          ("get_today_summary", self._summary), ("alert_caregiver", self._alert),

@@ -65,6 +65,9 @@ def _words(s: str) -> set[str]:
 def find_contact(name: str) -> tuple[str, str] | None:
     """Best word overlap: 'my grandpa', 'Ashton', 'grandfather in New York' all match."""
     book = contacts()
+    n = re.sub(r"^(call |my |the )+", "", name.lower().strip())
+    if n in book:  # exact alias wins ("grandson" -> spoken as "grandson")
+        return n, book[n]
     want = _words(name)
     best, score = None, 0
     for key, num in book.items():
