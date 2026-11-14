@@ -8,6 +8,8 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.database.ContentObserver;
+import android.provider.Settings;
 import android.graphics.Canvas;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
@@ -46,6 +48,31 @@ public class HaloService extends Service {
     private Thread voiceThread;
     private final Handler main = new Handler(Looper.getMainLooper());
     private long lastShow = 0;
+    // heal: Android turns Wireless debugging off on every Wi-Fi network change; turn it back on
+    private static final String ADB_WIFI = "adb_wifi_enabled";
+    private boolean healOn = false;
+    private boolean healPending = false;
+    private ContentObserver adbObserver;
+    private final Runnable healPoll = new Runnable() {
+        @Override
+        public void run() {
+            checkAdbWifi();
+            if (healOn) main.postDelayed(this, 3000);
+        }
+    };
+    private final Runnable healNow = new Runnable() {
+        @Override
+        public void run() {
+            healPending = false;
+            try {
+                if (Settings.Global.getInt(getContentResolver(), ADB_WIFI, 0) == 0) {
+                    Settings.Global.putInt(getContentResolver(), ADB_WIFI, 1);
+                }
+            } catch (SecurityException e) {
+                healOn = false;  // permission not granted: nothing we can do
+            }
+        }
+    };
     private final Runnable watchdog = new Runnable() {
         @Override
         public void run() {
@@ -77,6 +104,11 @@ public class HaloService extends Service {
             stopIfIdle();
         } else if ("voice".equals(action)) {
             startVoice();
+        } else if ("heal".equals(action)) {
+            startHeal();
+        } else if ("heal_off".equals(action)) {
+            stopHeal();
+            stopIfIdle();
         } else if ("voice_off".equals(action)) {
             voiceOn = false;
             stopIfIdle();
@@ -89,12 +121,43 @@ public class HaloService extends Service {
     @Override
     public void onDestroy() {
         voiceOn = false;
+        stopHeal();
         removeHalo();
         super.onDestroy();
     }
 
+    private void startHeal() {
+        if (healOn) return;
+        healOn = true;
+        adbObserver = new ContentObserver(main) {
+            @Override
+            public void onChange(boolean selfChange) {
+                checkAdbWifi();
+            }
+        };
+        getContentResolver().registerContentObserver(Settings.Global.getUriFor(ADB_WIFI), false, adbObserver);
+        main.postDelayed(healPoll, 3000);
+        checkAdbWifi();
+    }
+
+    private void stopHeal() {
+        healOn = false;
+        main.removeCallbacks(healPoll);
+        main.removeCallbacks(healNow);
+        if (adbObserver != null) getContentResolver().unregisterContentObserver(adbObserver);
+        adbObserver = null;
+    }
+
+    private void checkAdbWifi() {
+        if (!healOn || healPending) return;
+        if (Settings.Global.getInt(getContentResolver(), ADB_WIFI, 0) == 0) {
+            healPending = true;
+            main.postDelayed(healNow, 1500);  // let Android finish its network change first
+        }
+    }
+
     private void stopIfIdle() {
-        if (view == null && !voiceOn) {
+        if (view == null && !voiceOn && !healOn) {
             stopForeground(STOP_FOREGROUND_REMOVE);
             stopSelf();
         }

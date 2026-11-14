@@ -98,6 +98,22 @@ def adb(*args: str, timeout: float = 15) -> str:
     return r.stdout
 
 
+def pick_serial() -> str | None:
+    """One phone, possibly listed twice (by IP and by its mDNS name) after a reconnect: pin the stable
+    name in ANDROID_SERIAL so every adb call here and in phone-harness talks to exactly one entry."""
+    try:
+        out = subprocess.run([ADB, "devices"], capture_output=True, text=True, timeout=8).stdout
+    except Exception:
+        return None
+    serials = [l.split()[0] for l in out.splitlines()[1:] if l.strip().endswith("device")]
+    if not serials:
+        return None
+    named = [x for x in serials if "_adb-tls-connect" in x]
+    pick = named[0] if named else serials[0]
+    os.environ["ANDROID_SERIAL"] = pick
+    return pick
+
+
 def check() -> bool:
     """True if exactly one device is connected over adb."""
     if dry_run:
@@ -111,6 +127,8 @@ def check() -> bool:
         return False
     devs = [l for l in out.splitlines()[1:] if l.strip().endswith("device")]
     state.update("devices.phone", "on" if devs else "off")
+    if devs:
+        pick_serial()
     return bool(devs)
 
 
@@ -214,6 +232,8 @@ def keep_connected(on_back=None, every: float = 5.0) -> None:
             if not ok:
                 _try_reconnect()
                 ok = _device_ok()
+            if ok:
+                pick_serial()  # the entry may have changed (new port after Wireless debugging restarted)
             if ok != was_ok:
                 state.update("devices.phone", "on" if ok else "off")
                 if ok:
@@ -246,6 +266,8 @@ def start_phone_voice(port: int = 8770) -> bool:
     try:
         adb("--raw", "reverse", f"tcp:{port}", f"tcp:{port}")
         adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "voice")
+        # keep Wireless debugging on across Wi-Fi hops (the app turns it back on by itself)
+        adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "heal")
         return True
     except Exception as e:
         console.log(f"[voice] phone speaker not available ({str(e)[:100]}); using the Mac speakers")

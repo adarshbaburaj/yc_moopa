@@ -32,5 +32,7 @@ if [ "$1" = "install" ]; then
     "$ADB" install -r "$OUT/moopa-halo.apk"
     "$ADB" shell appops set com.moopa.halo SYSTEM_ALERT_WINDOW allow
     "$ADB" shell pm grant com.moopa.halo android.permission.POST_NOTIFICATIONS || true
+    "$ADB" shell pm grant com.moopa.halo android.permission.WRITE_SECURE_SETTINGS
+    "$ADB" shell am start-foreground-service -n com.moopa.halo/.HaloService -a heal
     echo "installed + overlay permission granted"
 fi
