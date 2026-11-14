@@ -150,7 +150,11 @@ class FallResponder:
         while True:
             time.sleep(0.2)
             with self.lock:
-                due = self.checking and time.time() > self.deadline and not self.agent.gate.bot_speaking
+                checking = self.checking
+                due = checking and time.time() > self.deadline and not self.agent.gate.bot_speaking
+            if checking and not due:
+                # keep the mic open for the whole reply window (the normal awake window is shorter)
+                self.agent.gate.awake_until = max(self.agent.gate.awake_until, time.monotonic() + 1.0)
             if due:
                 self.alert("No answer for 10 seconds after a fall")
 
