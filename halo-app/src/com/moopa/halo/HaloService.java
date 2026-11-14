@@ -20,6 +20,9 @@ import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.graphics.SweepGradient;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.os.IBinder;
 import android.view.RoundedCorner;
 import android.view.View;
@@ -38,8 +41,22 @@ public class HaloService extends Service {
     private static final int VOICE_RATE = 24000;
     private WindowManager wm;
     private HaloView view;
+    private static final long HALO_TIMEOUT_MS = 15000;  // no "show" heartbeat for this long -> off
     private volatile boolean voiceOn = false;
     private Thread voiceThread;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private long lastShow = 0;
+    private final Runnable watchdog = new Runnable() {
+        @Override
+        public void run() {
+            if (view != null && SystemClock.elapsedRealtime() - lastShow > HALO_TIMEOUT_MS) {
+                removeHalo();
+                stopIfIdle();
+            } else if (view != null) {
+                main.postDelayed(this, 1000);
+            }
+        }
+    };
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -49,8 +66,13 @@ public class HaloService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         startAsForeground();  // required promptly after start-foreground-service, even for "hide"
-        String action = intent == null ? "show" : intent.getAction();
-        if ("hide".equals(action)) {
+        String action = intent == null ? null : intent.getAction();
+        if ("show".equals(action)) {
+            lastShow = SystemClock.elapsedRealtime();
+            showHalo();
+            main.removeCallbacks(watchdog);
+            main.postDelayed(watchdog, 1000);
+        } else if ("hide".equals(action)) {
             removeHalo();
             stopIfIdle();
         } else if ("voice".equals(action)) {
@@ -59,7 +81,7 @@ public class HaloService extends Service {
             voiceOn = false;
             stopIfIdle();
         } else {
-            showHalo();
+            stopIfIdle();  // unknown or restarted without an intent: never show by accident
         }
         return START_NOT_STICKY;
     }
@@ -109,8 +131,10 @@ public class HaloService extends Service {
                 track.play();
                 byte[] buf = new byte[4096];
                 while (voiceOn) {
+                    long connectedAt = 0;
                     try (Socket sock = new Socket()) {
                         sock.connect(new InetSocketAddress("127.0.0.1", VOICE_PORT), 2000);
+                        connectedAt = SystemClock.elapsedRealtime();
                         sock.setTcpNoDelay(true);
                         InputStream in = sock.getInputStream();
                         int n;
@@ -118,8 +142,18 @@ public class HaloService extends Service {
                             track.write(buf, 0, n & ~1);
                         }
                     } catch (Exception e) {
-                        try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
+                        // not connected (Moopa not running yet): try again below
                     }
+                    if (connectedAt > 0 && SystemClock.elapsedRealtime() - connectedAt > 1500) {
+                        // a real session ended: the laptop went away, so never leave the halo on
+                        main.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                removeHalo();
+                            }
+                        });
+                    }
+                    try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
                 }
                 track.stop();
                 track.release();

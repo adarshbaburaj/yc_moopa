@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 from moopa import state
@@ -155,6 +156,16 @@ def working(linger: float = 0.0):
     if first:
         _halo_cmd("show")
         state.emit("action", "Halo on: agent is working on the phone")
+
+        def heartbeat():  # the phone turns the halo off by itself if this stops for 15 s
+            while True:
+                time.sleep(5)
+                with _halo_lock:
+                    if _halo_users == 0:
+                        return
+                _halo_cmd("show")
+
+        _threading.Thread(target=heartbeat, daemon=True).start()
     try:
         yield
     finally:
@@ -169,6 +180,12 @@ def working(linger: float = 0.0):
             _threading.Timer(linger, off).start()
         else:
             off()
+
+
+def halo_off_now() -> None:
+    """On quit: make sure nothing is left glowing on the phone."""
+    if not dry_run:
+        _halo_cmd("hide")
 
 
 def start_phone_voice(port: int = 8770) -> bool:

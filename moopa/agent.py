@@ -81,10 +81,18 @@ class PhoneVoice:
     def __init__(self):
         self.writer = None
         self.server = None
+        self._lock = None
 
     async def start(self):
-        if self.server is None:
-            self.server = await asyncio.start_server(self._client, "127.0.0.1", VOICE_PORT)
+        self._lock = self._lock or asyncio.Lock()
+        async with self._lock:  # start() can be reached twice; bind once
+            if self.server is not None:
+                return
+            try:
+                self.server = await asyncio.start_server(self._client, "127.0.0.1", VOICE_PORT,
+                                                         reuse_address=True)
+            except OSError as e:
+                print(f"[voice] could not open the phone speaker port {VOICE_PORT} ({e}); using the Mac")
 
     async def _client(self, reader, writer):
         if self.writer:
