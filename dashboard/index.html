@@ -64,7 +64,19 @@
   .vital .n { font-size: 54px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .vital .u { color: var(--muted); font-size: 18px; }
   .vital .l { margin-left: auto; color: var(--muted); }
-  .heart { color: var(--bad); }
+  .heart { color: var(--bad); display: inline-block; transform-origin: center; }
+  .heart.beat { animation: beat var(--beat, 0.85s) ease-out infinite; }
+  @keyframes beat { 0% { transform: scale(1); } 12% { transform: scale(1.32); } 24% { transform: scale(1); } 36% { transform: scale(1.15); } 50%,100% { transform: scale(1); } }
+  .stream { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin: -4px 0 10px; font-variant-numeric: tabular-nums; }
+  .stream .dot { width: 9px; height: 9px; border-radius: 50%; background: #c9c2b6; flex: none; }
+  .stream.on .dot { background: var(--ok); box-shadow: 0 0 0 0 rgba(31,122,77,.5); }
+  .stream .dot.ping { animation: ping .7s ease-out; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(31,122,77,.55); transform: scale(1.35); } 100% { box-shadow: 0 0 0 9px rgba(31,122,77,0); transform: scale(1); } }
+  .stream .pk { margin-left: auto; }
+  #pulse { width: 100%; height: 64px; display: block; margin: 4px 0 8px; border-radius: 10px; background: #fbf8f4; border: 1px solid var(--line); }
+  #spark { width: 100%; height: 34px; display: block; }
+  .tag.demo { background: var(--warn-bg); color: var(--warn); font-size: 10px; padding: 2px 6px; font-weight: 600; letter-spacing: .02em; }
+  @media (prefers-reduced-motion: reduce) { .heart.beat, .stream .dot.ping { animation: none; } }
   .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
   .tag.live { background: var(--ok-bg); color: var(--ok); }
   .tag.simulated { background: var(--warn-bg); color: var(--warn); }
@@ -103,7 +115,7 @@
   </div>
   <div class="g-strip">
     <span><b id="g-steps">0</b>steps today</span>
-    <span><b id="g-hr">–</b>heart rate<span id="g-sim" class="sim" style="display:none">SIMULATED</span></span>
+    <span><b id="g-hr">–</b>heart rate<span id="g-sim" class="sim" style="display:none">demo data</span></span>
     <span id="g-band">band: –</span>
   </div>
 </div>
@@ -124,8 +136,11 @@
   <div class="grid">
     <div class="card">
       <h2>Vitals from the ring <span class="tag none" id="src">NO READINGS</span></h2>
-      <div class="vital"><span class="heart">♥</span><span class="n" id="hr">–</span><span class="u">bpm</span><span class="l">Heart rate</span></div>
+      <div class="stream" id="stream"><span class="dot" id="sdot"></span><span id="stext">Ring: waiting for data</span><span class="pk" id="pk"></span></div>
+      <div class="vital"><span class="heart" id="heart">♥</span><span class="n" id="hr">–</span><span class="u">bpm</span><span class="l">Heart rate</span></div>
+      <canvas id="pulse" aria-label="Pulse trace at the current heart rate"></canvas>
       <div class="vital"><span class="n" id="spo2">–</span><span class="u">%</span><span class="l">Blood oxygen</span></div>
+      <canvas id="spark" aria-label="Heart rate, last 60 seconds"></canvas>
       <div class="fine" id="age">Waiting for the ring.</div>
       <div class="fine">Wellness readings, not a medical device.</div>
     </div>
@@ -295,9 +310,9 @@ function render(s) {
   const v = s.vitals || {};
   $("hr").textContent = v.heart_rate ?? "–"; $("spo2").textContent = v.spo2 ?? "–";
   const live = v.source === "ring" || v.source === "live", sim = v.source === "simulated";
-  $("src").className = "tag " + (live ? "live" : sim ? "simulated" : "none");
-  $("src").textContent = live ? "LIVE FROM RING" : sim ? "SIMULATED" : "NO READINGS";
-  $("age").textContent = v.ts ? `Updated ${Math.max(0, Math.round(Date.now() / 1000 - v.ts))} s ago` : "Waiting for the ring.";
+  $("src").className = "tag " + (live ? "live" : sim ? "demo" : "none");
+  $("src").textContent = live ? "LIVE FROM RING" : sim ? "demo data" : "NO READINGS";
+  ringPacket(v, live, sim);
   const a = s.activity || {};
   $("steps").textContent = (a.steps || 0).toLocaleString();
   $("active").textContent = Math.floor((a.active_s || 0) / 60) + " min";
@@ -310,13 +325,13 @@ function render(s) {
   const label = { band: "Band", ring: "Ring", phone: "Phone", mic: "Mic", speaker: "Voice" };
   $("devices").innerHTML = Object.keys(label).filter(k => d[k]).map(k => {
     const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) ? "on" : val === "sim" ? "sim" : "";
-    const txt = k === "ring" && val === "sim" ? "SIMULATED" : k === "band" && val === "sim" ? "pretend" : val;
+    const txt = k === "ring" && val === "sim" ? "streaming · demo data" : k === "band" && val === "sim" ? "pretend" : val;
     return `<span class="dev ${cls}">${label[k]}: ${esc(txt)}</span>`;
   }).join("");
   // grandpa strip
   $("g-steps").textContent = (a.steps || 0).toLocaleString();
   $("g-hr").textContent = v.heart_rate ?? "–";
-  $("g-sim").style.display = sim ? "inline" : "none";
+  $("g-sim").style.display = sim ? "inline" : "none"; $("g-sim").textContent = "demo data";
   $("g-band").textContent = "band: " + (d.band === "on" ? "connected" : d.band === "sim" ? "pretend" : (d.band || "–"));
 }
 async function poll() {
@@ -329,6 +344,61 @@ function listen() {
   es.onerror = () => { es.close(); setTimeout(listen, 2000); };
 }
 async function act(name) { await fetch("/action/" + name, { method: "POST" }); }
+/* ---------- ring stream: pulse trace, beating heart, packet dot, 60 s sparkline ---------- */
+const RING = { ts: null, hr: null, packets: 0, hist: [], phase: 0, last: performance.now(), trace: [] };
+function ringPacket(v, live, sim) {
+  RING.live = live; RING.sim = sim;
+  if (!v.ts || v.ts === RING.ts) return;
+  RING.ts = v.ts; RING.hr = v.heart_rate; RING.packets++;
+  RING.hist.push({ t: v.ts, hr: v.heart_rate }); RING.hist = RING.hist.filter(h => h.t > v.ts - 60);
+  const d = $("sdot"); d.classList.remove("ping"); void d.offsetWidth; d.classList.add("ping");
+  $("stream").classList.add("on");
+  $("stext").textContent = (live ? "Streaming from ring" : "Streaming") + " · Bluetooth LE";
+  $("pk").textContent = RING.packets + (RING.packets === 1 ? " reading" : " readings");
+  if (v.heart_rate) { $("heart").style.setProperty("--beat", (60 / v.heart_rate).toFixed(2) + "s"); $("heart").classList.add("beat"); }
+}
+function ppg(p) { // one optical pulse: systolic peak + dicrotic notch bump
+  return Math.exp(-((p - 0.18) ** 2) / 0.006) + 0.38 * Math.exp(-((p - 0.47) ** 2) / 0.01);
+}
+function fit(c) { const r = c.getBoundingClientRect(), k = devicePixelRatio || 1;
+  if (c.width !== Math.round(r.width * k)) { c.width = Math.round(r.width * k); c.height = Math.round(r.height * k); } return k; }
+function ringTick(now) {
+  const dt = Math.min(0.1, (now - RING.last) / 1000); RING.last = now;
+  const c = $("pulse");
+  if (c && c.offsetParent) {
+    const k = fit(c), W = c.width, H = c.height, g = c.getContext("2d");
+    const fresh = RING.ts && Date.now() / 1000 - RING.ts < 45;
+    const n0 = Math.round(W / (1.5 * k));
+    if (fresh && RING.hr && RING.trace.length < 4) // first packet: fill the window so it reads as a running stream
+      for (let i = 0; i < n0; i++) { RING.phase = (RING.phase + (RING.hr / 60) / 120) % 1; RING.trace.push(ppg(RING.phase) + (Math.random() - .5) * 0.03); }
+    const steps = Math.max(1, Math.round(dt * 120)); // 120 samples per second scroll
+    for (let i = 0; i < steps; i++) {
+      if (fresh && RING.hr) RING.phase = (RING.phase + (RING.hr / 60) / 120) % 1;
+      RING.trace.push(fresh && RING.hr ? ppg(RING.phase) + (Math.random() - .5) * 0.03 : 0);
+    }
+    const n = Math.round(W / (1.5 * k)); if (RING.trace.length > n) RING.trace.splice(0, RING.trace.length - n);
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = "rgba(0,0,0,.05)"; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 24 * k) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    g.strokeStyle = fresh ? "#c62828" : "#bbb"; g.lineWidth = 2 * k; g.lineJoin = "round"; g.beginPath();
+    const off = n - RING.trace.length;
+    RING.trace.forEach((y, i) => { const x = (off + i) * 1.5 * k, yy = H - 8 * k - y * (H - 16 * k); i ? g.lineTo(x, yy) : g.moveTo(x, yy); });
+    g.stroke();
+    if (RING.trace.length) { const y = RING.trace[RING.trace.length - 1];
+      g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(W - 2 * k, H - 8 * k - y * (H - 16 * k), 3 * k, 0, 7); g.fill(); }
+  }
+  const s = $("spark");
+  if (s && s.offsetParent && RING.hist.length > 1) {
+    const k = fit(s), W = s.width, H = s.height, g = s.getContext("2d"), hs = RING.hist.filter(h => h.hr);
+    const lo = Math.min(...hs.map(h => h.hr)) - 3, hi = Math.max(...hs.map(h => h.hr)) + 3, t1 = Date.now() / 1000;
+    g.clearRect(0, 0, W, H); g.strokeStyle = "#5b3fd1"; g.lineWidth = 1.5 * k; g.beginPath();
+    hs.forEach((h, i) => { const x = W - (t1 - h.t) / 60 * W, y = H - 3 * k - (h.hr - lo) / (hi - lo) * (H - 6 * k); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke(); g.fillStyle = "#6d665c"; g.font = `${10 * k}px -apple-system, sans-serif`; g.fillText("last 60 s", 2 * k, 10 * k);
+  }
+  if ($("age")) $("age").textContent = RING.ts ? `Last reading ${Math.max(0, Date.now() / 1000 - RING.ts).toFixed(1)} s ago` : "Waiting for the ring.";
+  requestAnimationFrame(ringTick);
+}
+requestAnimationFrame(ringTick);
 poll(); listen(); setInterval(poll, 2000); requestAnimationFrame(tick);
 </script>
 </body>

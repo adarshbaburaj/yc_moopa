@@ -53,10 +53,11 @@ class RingLink:
         state.update("devices.ring", "sim")
         hr, spo2 = 72.0, 97.0
         while not self._stop.is_set():
-            hr = min(84, max(62, hr + random.uniform(-2, 2)))
-            spo2 = min(99, max(95, spo2 + random.uniform(-0.5, 0.5)))
+            # one reading a second, small steps, so the dashboard stream looks like a live feed
+            hr = min(82, max(64, hr + random.uniform(-1.2, 1.2) + (72 - hr) * 0.05))
+            spo2 = min(99, max(96, spo2 + random.uniform(-0.3, 0.3)))
             _set(round(hr), round(spo2), "simulated")
-            self._stop.wait(5)
+            self._stop.wait(float(os.getenv("RING_SIM_EVERY_S", "1")))
 
     # ---------- real COLMI ring ----------
     async def _find(self):
