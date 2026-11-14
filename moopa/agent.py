@@ -323,6 +323,8 @@ emoji, no markdown: everything you write is spoken aloud. Never rush them.
 
 Rules:
 - Use your tools to act. After a tool runs, tell them in one short sentence what happened.
+- shop_for and proceed_to_checkout announce themselves out loud. When you call them, say
+  nothing else until their result comes back.
 - Before anything that spends money or cannot be undone, read back what it is and ask
   for a clear spoken "yes". Never assume yes.
 - For "get me / buy / order something", use shop_for. When it returns STOPPED BEFORE PURCHASE,
@@ -448,6 +450,9 @@ class Agent:
         if not await self._phone_ready(p):
             return
         item = p.arguments.get("item", "").strip() or "item"
+        # spoken at once, so the elder isn't left in silence while the phone works (~30-40 s)
+        self.say(f"Okay. I'm going to get {'an' if item[:1].lower() in 'aeiou' else 'a'} {item} for you "
+                 f"right now. One moment.")
         await p.result_callback(await asyncio.to_thread(phone.shop, item))
 
     async def _checkout(self, p: FunctionCallParams):
@@ -467,6 +472,7 @@ class Agent:
         if not await self._phone_ready(p):
             return
         state.update("pending_confirmation", None)
+        self.say("Okay. I'm getting your order ready right now. One moment.")
         await p.result_callback(await asyncio.to_thread(phone.checkout_preview))
 
     async def _vitals(self, p: FunctionCallParams):
