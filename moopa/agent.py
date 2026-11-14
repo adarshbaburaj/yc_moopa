@@ -409,15 +409,17 @@ class Agent:
                                      voice=os.getenv("MOOPA_VOICE", "aura-2-thalia-en")))
         llm = OpenAILLMService(api_key=os.environ["OPENAI_API_KEY"],
                                settings=OpenAILLMService.Settings(
-                                   model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-luna"))
+                                   model=os.getenv("OPENAI_MODEL", "").strip() or "gpt-6-luna",
+                                   system_instruction=persona(),
+                                   # gpt-6-luna refuses tools + reasoning on /chat/completions
+                                   extra={"reasoning_effort": os.getenv("OPENAI_REASONING", "none")}))
         for name, fn in [("call_contact", self._call_contact), ("video_call_contact", self._video_call),
                          ("phone_task", self._phone_task), ("get_vitals", self._vitals),
                          ("get_today_summary", self._summary), ("alert_caregiver", self._alert),
                          ("end_call", self._end_call)]:
             llm.register_function(name, fn, timeout_secs=180 if name in ("phone_task", "video_call_contact") else None)
 
-        context = LLMContext(messages=[{"role": "system", "content": persona()}],
-                             tools=ToolsSchema(standard_tools=TOOLS))
+        context = LLMContext(tools=ToolsSchema(standard_tools=TOOLS))
         agg = LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(
             vad_analyzer=SileroVADAnalyzer()))
 
