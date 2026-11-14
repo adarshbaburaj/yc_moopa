@@ -7,6 +7,7 @@ laptop. wake() opens a window for one exchange plus follow-ups, then it sleeps a
 import asyncio
 import os
 import queue
+import re
 import time
 
 import numpy as np
@@ -16,6 +17,7 @@ from loguru import logger
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
 from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
@@ -296,7 +298,8 @@ class TranscriptWatch(FrameProcessor):
             self._gate.awake_until = max(self._gate.awake_until, time.monotonic() + FOLLOW_UP_SECS)
         if isinstance(frame, TranscriptionFrame) and frame.text.strip():
             state.emit("transcript", frame.text.strip())
-            self._on_final(frame.text.strip())
+            if self._on_final(frame.text.strip()):
+                return  # handled by a shortcut (e.g. the yoga-mat demo): the LLM doesn't get this turn
         await self.push_frame(frame, direction)
 
 
@@ -393,7 +396,7 @@ class Agent:
         self.gate = MicGate()
         self.phone_voice = PhoneVoice() if voice_on_phone else None
         if voice_on_phone:
-            self.gate.tail_s = 0.8  # the phone buffers ~0.5 s: wait for it before listening again
+            self.gate.tail_s = 0.5  # the phone buffers a little: wait for it before listening again
         self.loop: asyncio.AbstractEventLoop | None = None
         self.worker: PipelineWorker | None = None
         self.transcript_hooks = []  # callables(text) -> bool; True = consumed (fall check uses this)
@@ -507,7 +510,7 @@ class Agent:
         await p.result_callback("Call ended.")
 
     # ---- control (thread-safe; callable from band/keyboard threads)
-    def wake(self, greet: str | None = "I'm listening.", remember: bool = False, hold: bool = False) -> None:
+    def wake(self, greet: str | None = "Yes?", remember: bool = False, hold: bool = False) -> None:
         """hold=True: stay listening until stop_listening() (double-tap again) or MAX_LISTEN_S."""
         if not self.loop:
             return
@@ -557,12 +560,71 @@ class Agent:
     def feed_audio(self, pcm16: bytes) -> None:
         self.transport.input().feed_external(pcm16)
 
-    def _on_final(self, text: str):
+    def _on_final(self, text: str) -> bool:
+        """Returns True if a shortcut consumed this transcript."""
         for hook in list(self.transcript_hooks):
             try:
                 hook(text)
             except Exception as e:
                 logger.warning(f"transcript hook: {e}")
+        return self._shop_shortcut(text)
+
+    # ---- demo shortcut: "yoga mat" -> shop deterministically; the yes that follows -> checkout
+    _YOGA = re.compile(r"\byoga\b", re.I)
+
+    def _shop_shortcut(self, text: str) -> bool:
+        if getattr(self, "_shopping", False):
+            return True  # already working on it: don't start a second run
+        pend = state.get("pending_confirmation")
+        if pend and pend.get("goal", "").lower().startswith("shop"):
+            self._shopping = True
+            self.loop.create_task(self._answer_pending(text, pend))
+            return True
+        if self._YOGA.search(text) and os.getenv("MOOPA_YOGA_SHORTCUT", "1") != "0":
+            self._shopping = True
+            self.loop.create_task(self._demo_shop(text, "yoga mat"))
+            return True
+        return False
+
+    async def _remember(self, role: str, content: str):
+        await self.worker.queue_frames([LLMMessagesAppendFrame([{"role": role, "content": content}], run_llm=False)])
+
+    async def _demo_shop(self, text: str, item: str):
+        try:
+            await self._remember("user", text)
+            msg = await asyncio.to_thread(phone.ready)
+            if msg:
+                self.say("Your phone is locked. Please unlock it, and ask me again.", remember=True)
+                return
+            self.say(f"Okay. I'm going to get a {item} for you right now. One moment.", remember=True)
+            result = await asyncio.to_thread(phone.shop, item)
+            pend = state.get("pending_confirmation")
+            if pend:
+                pend = dict(pend, goal=f"shop {item}", ts=time.time())
+                state.update("pending_confirmation", pend)
+                self.say(pend["question"], remember=True)
+            else:
+                self.say(result if not result.startswith("STOPPED") else "I couldn't finish that.", remember=True)
+        finally:
+            self._shopping = False
+
+    async def _answer_pending(self, text: str, pend: dict):
+        from moopa.fall import YES, judge_consent
+
+        try:
+            p_yes, src = await asyncio.to_thread(judge_consent, pend["question"], text)
+            state.emit("judge", f"Consent \"{text}\" -> agrees {p_yes:.2f} ({src})", p_yes=p_yes, source=src)
+            if p_yes < YES:  # not a clear yes: let the conversation model handle it normally
+                await self.worker.queue_frames([LLMMessagesAppendFrame([{"role": "user", "content": text}],
+                                                                       run_llm=True)])
+                return
+            await self._remember("user", text)
+            state.update("pending_confirmation", None)
+            self.say("Okay. I'm getting your order ready right now. One moment.", remember=True)
+            result = await asyncio.to_thread(phone.checkout_preview)
+            self.say(result + " Your family can press Place order when they are ready.", remember=True)
+        finally:
+            self._shopping = False
 
     async def _sleeper(self):
         while True:
@@ -579,7 +641,10 @@ class Agent:
         stt = DeepgramSTTService(
             api_key=os.environ["DEEPGRAM_API_KEY"],
             settings=DeepgramSTTService.Settings(
-                keyterm=[k for k in [os.getenv("GRANDSON_NAME", "").strip(), "grandson", "yoga mat"] if k]),
+                keyterm=list(dict.fromkeys(
+                    [k for k in [os.getenv("GRANDSON_NAME", "").strip(), "grandson", "grandpa", "yoga mat",
+                                 "Amazon", "WhatsApp", "video call", "checkout", "Moopa", "go ahead"] if k]
+                    + [c.title() for c in phone.contact_names()][:10]))),
         )
         tts = DeepgramTTSService(api_key=os.environ["DEEPGRAM_API_KEY"],
                                  settings=DeepgramTTSService.Settings(
@@ -599,7 +664,9 @@ class Agent:
 
         context = LLMContext(tools=ToolsSchema(standard_tools=TOOLS))
         agg = LLMContextAggregatorPair(context, user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer()))
+            # volume floor 0.6 -> 0.3: quiet or distant speech still counts as speech
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(confidence=0.6, start_secs=0.15,
+                                                            stop_secs=0.3, min_volume=0.3))))
 
         pipeline = Pipeline([
             self.transport.input(),

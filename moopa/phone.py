@@ -438,6 +438,10 @@ def _ask_model(prompt: str, png: bytes | None) -> dict:
     return json.loads(m.group(0)) if m else {}
 
 
+def allow_shop_goal(goal: str) -> bool:
+    return "to the cart" in goal.lower()
+
+
 def _node_at(nodes, x, y):
     """Closest labelled node to a point (for checking coordinate taps)."""
     best = min(nodes, key=lambda n: (n["x"] - x) ** 2 + (n["y"] - y) ** 2, default=None)
@@ -478,7 +482,8 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "", allow_checkout: b
                 return act.get("summary") or "Done."
             if a == "need_confirmation":
                 q = act.get("question") or "Shall I go ahead?"
-                state.update("pending_confirmation", {"goal": goal, "question": q, "ts": time.time()})
+                state.update("pending_confirmation", {"goal": ("shop " if allow_shop_goal(goal) else "") + goal,
+                                                      "question": q, "ts": time.time()})
                 _log(f"Waiting for confirmation: {q}")
                 return f"STOPPED BEFORE PURCHASE. Ask the elder exactly this and wait for a spoken yes: {q}"
             if a == "open_app":
