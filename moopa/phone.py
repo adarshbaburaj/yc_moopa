@@ -318,10 +318,11 @@ import time
 
 NAV_ACTIONS = ["open_app", "tap_ui", "tap", "type_text", "scroll", "back", "done", "need_confirmation"]
 # Never tapped by the navigator, whatever the model says. Checked against the real target node.
-FORBIDDEN = re.compile(
-    r"buy now|buy with|place (your )?order|proceed to (checkout|buy|pay)|check ?out|\bpay\b|pay now|"
-    r"payment|confirm (purchase|order|payment)|complete (purchase|order)|1-click|one-click|subscribe",
-    re.I)
+FINAL_BUTTONS = re.compile(  # spend money: blocked always
+    r"buy now|buy with|place (your )?order|\bpay\b|pay now|confirm (purchase|order|payment)|"
+    r"complete (purchase|order)|1-click|one-click|subscribe", re.I)
+CHECKOUT_BUTTONS = re.compile(r"proceed to (checkout|buy|pay)|check ?out|payment", re.I)  # only after a yes
+FORBIDDEN = re.compile(f"{FINAL_BUTTONS.pattern}|{CHECKOUT_BUTTONS.pattern}", re.I)
 
 _h = None  # phone_harness.helpers, imported lazily (it connects to the phone on import)
 
@@ -450,7 +451,8 @@ def run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
         return _run_task(goal, max_steps, extra)
 
 
-def _run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
+def _run_task(goal: str, max_steps: int = 15, extra: str = "", allow_checkout: bool = False) -> str:
+    blocked = FINAL_BUTTONS if allow_checkout else FORBIDDEN
     if dry_run:
         _log(f"Navigator (dry-run): {goal}")
         return f"(dry run) I would now do this on the phone: {goal}."
@@ -493,7 +495,7 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
                         history.append(f"tap_ui {q!r}: not found on screen")
                         continue
                     n = hits[0]
-                if FORBIDDEN.search(_label(n)):
+                if blocked.search(_label(n)):
                     _log(f"BLOCKED tap on '{_label(n)}' (purchase button)")
                     history.append(f"BLOCKED: '{_label(n)}' is a purchase button. Use need_confirmation instead.")
                     continue
@@ -503,7 +505,7 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
             elif a == "tap":
                 x, y = int(act["x"]), int(act["y"])
                 n = _node_at(nodes, x, y)
-                if n and FORBIDDEN.search(_label(n)):
+                if n and blocked.search(_label(n)):
                     _log(f"BLOCKED tap on '{_label(n)}' (purchase button)")
                     history.append(f"BLOCKED: '{_label(n)}' is a purchase button. Use need_confirmation instead.")
                     continue
@@ -556,7 +558,34 @@ def shop(item: str) -> str:
             pass
         return _run_task(f"Add one {item} to the cart", max_steps=8,
                          extra="The Amazon app is already open on the search results for this item. "
-                               "Do not search again: pick a well-rated, reasonably priced one and add it.")
+                               "Do not search again: pick a well-rated, reasonably priced one and add it. "
+                               "Then return need_confirmation with exactly this kind of question: "
+                               "\"I found <short name> for <price> and added it to your cart. "
+                               "Shall I go to checkout?\"")
+
+
+def checkout_preview() -> str:
+    """After a clear spoken yes: go to Amazon's final review screen and STOP there.
+    'Proceed to checkout' is allowed here; 'Place your order', 'Buy now', 'Pay' never are."""
+    if dry_run:
+        _log("(dry-run) Amazon checkout preview")
+        return "(dry run) I would open the final order screen and stop."
+    with working(linger=1.5):
+        domain = os.getenv("AMAZON_DOMAIN", "amazon.ae")
+        _log("Opening the Amazon cart")
+        adb("am", "start", "-a", "android.intent.action.VIEW", "-d",
+            f"https://www.{domain}/gp/cart/view.html", "-p", APPS["amazon"])
+        try:
+            _helpers().wait_for_app(APPS["amazon"], timeout=8)
+        except Exception:
+            pass
+        return _run_task(
+            "Go to checkout and stop on the final review screen, the one with the 'Place your order' "
+            "button. Never press 'Place your order'.", max_steps=8, allow_checkout=True,
+            extra="The cart is open. Tap 'Proceed to checkout'. Keep the saved address, delivery and payment; "
+                  "if asked, choose the already selected ones and continue. When you see the 'Place your "
+                  "order' button, return done with: \"Your order is ready on the final screen: <item>, total "
+                  "<order total>. I have not placed it.\"")
 
 
 def video_call(number: str, who: str) -> str:

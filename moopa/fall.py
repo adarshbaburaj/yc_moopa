@@ -72,6 +72,34 @@ def judge_reply(reply: str) -> tuple[float, float, str]:
 LEAN = 0.5
 
 
+CONSENT_Q = {
+    "agrees": {
+        "type": "noul",
+        "instructions": "Does the person in `reply` clearly agree to go ahead with what was asked in `question`?",
+        "criteria": {"true": "They say yes, go ahead, okay do it, or similar, without doubt",
+                     "false": "They say no, wait, not now, ask a question back, or sound unsure"},
+    },
+}
+_YES = re.compile(r"\b(yes|yeah|yep|sure|go ahead|ok(ay)?|please do|do it)\b", re.I)
+_NOT = re.compile(r"\b(no|not|don'?t|wait|stop|maybe|later|why|how much)\b", re.I)
+
+
+def judge_consent(question: str, reply: str) -> tuple[float, str]:
+    """-> (p_agrees, source). Code decides with YES (0.7); a failed call is never read as yes."""
+    key = os.getenv("TYPESAFE_API_KEY", "").strip()
+    if key:
+        body = {"model": os.getenv("TYPESAFE_MODEL", "jev-latest"),
+                "state": {"question": question, "reply": reply}, "questions": CONSENT_Q}
+        req = urllib.request.Request(JEV_URL, data=json.dumps(body).encode(),
+                                     headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=6) as r:
+                return float(json.load(r)["answers"]["agrees"]["noul"]), "jev"
+        except Exception as e:
+            state.emit("system", f"System One unavailable ({str(e)[:80]}), using keywords")
+    return (0.9 if _YES.search(reply) and not _NOT.search(reply) else 0.1), "keywords"
+
+
 def decide(p_ok: float, p_help: float) -> str:
     if p_help >= YES:
         return "alert"
