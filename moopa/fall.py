@@ -1,13 +1,13 @@
-"""Fall response: ask "Are you okay?", judge the reply with TypeSafe System One (Jev),
-decide in code. No answer within REPLY_S -> alert family (call) + dashboard goes red.
+"""Fall response (LIVE_DEMO.md): band rule fires -> Gemini checks the motion (<= 3 s, fails safe)
+-> "Are you okay? Are you all right?" -> listen 10 s -> Gemini judges the reply -> decide in code.
 
 Truth table (decided here, not by a model):
-  asks_help >= 0.7                      -> ALERT now
-  says_ok < 0.3 and asks_help >= 0.5    -> ALERT now (e.g. "No, I'm not okay")
-  says_ok >= 0.7 and asks_help < 0.3    -> cancel (they're fine)
-  anything else (unclear)               -> keep waiting; at the deadline -> ALERT
-  double-tap on the band                -> cancel
-  Jev unreachable                       -> keyword fallback (never read a failure as "fine")
+  Gemini motion check: p(fall) < 0.5           -> log it, no check-in   (timeout/error -> check-in anyway)
+  reply ok, confidence >= 0.7                  -> "Okay, I'm glad..." and back to idle
+  reply unclear, or ok below 0.7               -> ask once more ("Are you hurt? Say yes or no.")
+  needs_help / no_response / unclear twice     -> "I'm calling your family now." + call + dashboard red
+  double-tap on the band                       -> "I'm fine": cancel
+  Gemini unreachable                           -> TypeSafe System One, then keywords (a failure is never "fine")
 """
 
 import json
@@ -110,49 +110,174 @@ def decide(p_ok: float, p_help: float) -> str:
     return "wait"
 
 
+# ---- LIVE_DEMO.md wording and limits, all in one place
+CHECK_Q = "Are you okay? Are you all right?"
+RETRY_Q = "I didn't catch that. Are you hurt? Say yes or no."
+OK_LINE = "Okay, I'm glad. Tap twice if you need me."
+CALL_LINE = "I'm calling your family now."
+VERIFY_TIMEOUT_S = 3.0
+JUDGE_TIMEOUT_S = 5.0
+SETTLE_S = 1.2        # judge this long after the last words, so "I'm... fine" is one answer
+OK_MIN = 0.7
+FALL_MIN = 0.5
+
+_genai_client = None
+
+
+def _gemini_json(prompt: str, timeout: float) -> dict:
+    """One JSON answer from Gemini (Vertex if configured), or raise on timeout/error."""
+    import concurrent.futures
+
+    def call():
+        global _genai_client
+        from google import genai
+        from google.genai import types
+        if _genai_client is None:  # keep one client: a dropped client closes its connection
+            vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes")
+            _genai_client = genai.Client() if vertex else genai.Client(api_key=os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
+        # measured on our Vertex project: gemini-3-flash-preview + minimal thinking ~1 s, gemini-4-hydrogen ~2.8 s
+        r = _genai_client.models.generate_content(
+            model=os.getenv("FALL_GEMINI_MODEL", "gemini-3-flash-preview"), contents=[prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", temperature=0,
+                thinking_config=types.ThinkingConfig(thinking_level=os.getenv("FALL_GEMINI_THINKING", "minimal"))))
+        m = re.search(r"\{.*\}", r.text or "", re.S)
+        return json.loads(m.group(0)) if m else {}
+
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        return ex.submit(call).result(timeout=timeout)
+    finally:
+        ex.shutdown(wait=False)
+
+
+def _quiet(fn, *a):
+    try:
+        fn(*a)
+    except Exception:
+        pass
+
+
+def verify_motion(details: dict) -> tuple[float | None, str]:
+    """Stage 2 -> (p_fall or None if Gemini failed, reason)."""
+    feats = {k: details.get(k) for k in ("min_g", "peak_g", "freefall_ms", "turn_deg", "still_std_g", "still_s")}
+    prompt = ("A wrist band's accelerometer rule flagged a possible fall of an elderly wearer. Judge from these "
+              "features whether it was a real fall (or the band itself being dropped, which we treat the same) "
+              "rather than normal movement like waving an arm, putting the band down or sitting down hard.\n"
+              f"features: {json.dumps(feats)}\n"
+              f"|a| in g over the last 10 s at 10 Hz (oldest first, null = no sample): {json.dumps(details.get('series_10hz'))}\n"
+              'Answer only JSON: {"fall": true|false, "confidence": 0..1, "reason": "short"}')
+    try:
+        j = _gemini_json(prompt, VERIFY_TIMEOUT_S)
+        c = float(j.get("confidence", 0.5))
+        return (c if j.get("fall") else 1 - c), str(j.get("reason", ""))[:140]
+    except Exception as e:
+        return None, f"Gemini check failed ({type(e).__name__}), checking in anyway"
+
+
+def judge_checkin(question: str, reply: str) -> tuple[str, float, str, str]:
+    """Stage 3 -> (status ok|needs_help|unclear|no_response, confidence, reason, source)."""
+    if not reply.strip():
+        return "no_response", 1.0, "nothing heard", "code"
+    prompt = ("The speaker is an elderly person who may have just fallen. Their wristband assistant asked: "
+              f'"{question}". Speech may be faint, slurred, partial or mis-transcribed: judge the meaning, not the '
+              'exact words. "I\'m fine", "yeah yeah I\'m okay" -> ok. "I can\'t get up", "help", "my hip", groaning '
+              'words, "call my son" -> needs_help. If the question was "Are you hurt? Say yes or no", then "yes" means '
+              "needs_help and \"no\" means ok. Garbled or contradictory -> unclear. Empty -> no_response. "
+              "If in doubt, prefer needs_help over ok.\n"
+              f"transcript: {json.dumps(reply)}\n"
+              'Answer only JSON: {"status": "ok"|"needs_help"|"unclear"|"no_response", "confidence": 0..1, "reason": "short"}')
+    try:
+        j = _gemini_json(prompt, JUDGE_TIMEOUT_S)
+        st = j.get("status")
+        if st in ("ok", "needs_help", "unclear", "no_response"):
+            return st, float(j.get("confidence", 0.5)), str(j.get("reason", ""))[:140], "gemini"
+    except Exception as e:
+        state.emit("system", f"Gemini unavailable for the check-in ({type(e).__name__}), using System One")
+    if question == RETRY_Q and re.fullmatch(r"\W*(yes|yeah|yep)\W*", reply, re.I):
+        return "needs_help", 0.9, "said yes to being hurt", "keywords"
+    if question == RETRY_Q and re.fullmatch(r"\W*(no|nope|no,? i'?m (fine|okay|ok))\W*", reply, re.I):
+        return "ok", 0.8, "said no to being hurt", "keywords"
+    p_ok, p_help, src = judge_reply(reply)
+    v = decide(p_ok, p_help)
+    st = {"alert": "needs_help", "cancel": "ok"}.get(v, "unclear")
+    return st, max(p_ok, p_help), f"okay {p_ok:.2f}, needs help {p_help:.2f}", src
+
+
 class FallResponder:
     def __init__(self, agent):
         self.agent = agent
         self.lock = threading.RLock()
         self.checking = False
+        self.verifying = False
+        self.judging = False
+        self.attempt = 1
+        self.question = CHECK_Q
+        self.heard: list[str] = []
+        self.last_heard = 0.0
         self.deadline = 0.0
         self.sources: dict[str, float] = {}
         self.description = None
         threading.Thread(target=self._timer, daemon=True, name="fall-timer").start()
+        # warm Gemini now: the first call pays for login + connection, and a fall can't wait for that
+        threading.Thread(target=lambda: _quiet(_gemini_json, 'Answer only JSON {"ok": true}', 15),
+                         daemon=True, name="gemini-warm").start()
 
     # ---- inputs
-    def trigger(self, source: str, description: str | None = None):
+    def trigger(self, source: str, description: str | None = None, details: dict | None = None):
         with self.lock:
             now = time.time()
             self.sources = {s: t for s, t in self.sources.items() if now - t < CONFIRM_WINDOW_S}
             self.sources[source] = now
             if description:
                 self.description = description
-            confirmed = len(self.sources) >= 2
-            if state.get("status") == "ALERT":
-                if confirmed:
-                    a = dict(state.get("alert") or {})
-                    a.update(confirmed=True, sources=sorted(self.sources), description=self.description)
-                    state.update("alert", a)
-                    state.emit("fall", f"Fall confirmed by {' + '.join(sorted(self.sources))}")
+            if state.get("status") == "ALERT" or self.checking or self.verifying:
                 return
-            if self.checking:
-                if confirmed:
-                    state.emit("fall", f"Fall confirmed by {' + '.join(sorted(self.sources))}")
+            self.verifying = bool(details)
+        if details:
+            state.emit("fall", f"Possible fall ({description or source}). Checking the motion with Gemini.", source=source)
+            threading.Thread(target=self._verify, args=(source, details), daemon=True).start()
+        else:
+            self._start_check(source)
+
+    def _verify(self, source: str, details: dict):
+        t0 = time.time()
+        p_fall, reason = verify_motion(details)
+        ms = int((time.time() - t0) * 1000)
+        with self.lock:
+            self.verifying = False
+        if p_fall is None:
+            state.emit("judge", f"Gemini motion check: {reason} [{ms} ms]", source="gemini")
+            self._start_check(source)
+        elif p_fall >= FALL_MIN:
+            state.emit("judge", f"Gemini motion check: fall {p_fall:.2f} ({reason}) [{ms} ms] -> check in",
+                       p_fall=p_fall, source="gemini")
+            self._start_check(source)
+        else:
+            state.emit("judge", f"Gemini motion check: not a fall, fall {p_fall:.2f} ({reason}) [{ms} ms] -> no check-in",
+                       p_fall=p_fall, source="gemini")
+
+    def _start_check(self, source: str):
+        with self.lock:
+            if self.checking or state.get("status") == "ALERT":
                 return
-            self.checking = True
-            self.deadline = now + SPEAK_S + REPLY_S
+            self.checking, self.attempt, self.question = True, 1, CHECK_Q
+            self.heard, self.judging = [], False
+            self.deadline = time.time() + SPEAK_S + REPLY_S
         a = state.get("activity")
         state.merge("activity", {"falls": a["falls"] + 1})
         state.update("status", "CHECKING")
-        state.emit("fall", f"Possible fall ({source}). Asking if they are okay.", source=source)
-        self.agent.wake(greet="I think you fell. Are you okay?", remember=True)
+        state.emit("fall", f"Possible fall ({source}). Asking: {CHECK_Q}", source=source)
+        self.agent.wake(greet=CHECK_Q, remember=True)
 
-    def on_transcript(self, text: str):
+    def on_transcript(self, text: str) -> bool:
+        """While checking in, the reply belongs to this check (the chat agent doesn't answer it)."""
         with self.lock:
             if not self.checking:
-                return
-        threading.Thread(target=self._judge, args=(text,), daemon=True).start()
+                return False
+            self.heard.append(text.strip())
+            self.last_heard = time.time()
+        return True
 
     def on_double_tap(self) -> bool:
         with self.lock:
@@ -163,18 +288,31 @@ class FallResponder:
 
     # ---- decisions
     def _judge(self, text: str):
-        p_ok, p_help, src = judge_reply(text)
-        verdict = decide(p_ok, p_help)
-        state.emit("judge", f"\"{text}\" -> okay {p_ok:.2f}, needs help {p_help:.2f} ({src}) -> {verdict}",
-                   p_ok=p_ok, p_help=p_help, source=src, verdict=verdict)
-        if verdict == "alert":
-            self.alert("Asked for help after a fall: " + text)
-        elif verdict == "cancel":
-            self._cancel("Said they are okay")
+        st, conf, reason, src = judge_checkin(self.question, text)
+        state.emit("judge", f"Check-in \"{text}\" -> {st} {conf:.2f} ({reason}) [{src}]",
+                   status=st, confidence=conf, source=src)
+        with self.lock:
+            self.judging = False
+            if not self.checking:
+                return
+            retry = (st == "unclear" or (st == "ok" and conf < OK_MIN)) and self.attempt == 1
+            if retry:
+                self.attempt, self.question = 2, RETRY_Q
+                self.deadline = time.time() + SPEAK_S + REPLY_S
+        if st == "ok" and conf >= OK_MIN:
+            self.agent.say(OK_LINE)
+            self._cancel("Fall: the person said they're fine")
+        elif retry:
+            state.emit("fall", "Reply unclear: asking once more")
+            self.agent.say(RETRY_Q)
+        else:
+            why = {"needs_help": "Said they need help", "no_response": "No answer"}.get(st, "Still unclear after asking twice")
+            self.alert(f"{why} after a fall: \"{text}\" ({reason})")
 
     def _cancel(self, why: str):
         with self.lock:
             self.checking = False
+            self.verifying = False
             self.sources.clear()
             self.description = None
         state.update("status", "OK")
@@ -184,13 +322,21 @@ class FallResponder:
     def _timer(self):
         while True:
             time.sleep(0.2)
+            now = time.time()
+            judge = None
             with self.lock:
-                checking = self.checking
-                due = checking and time.time() > self.deadline and not self.agent.gate.bot_speaking
-            if checking and not due:
-                # keep the mic open for the whole reply window (the normal awake window is shorter)
-                self.agent.gate.awake_until = max(self.agent.gate.awake_until, time.monotonic() + 1.0)
-            if due:
+                if not self.checking:
+                    continue
+                speaking = self.agent.gate.bot_speaking
+                if self.heard and not self.judging and now - self.last_heard >= SETTLE_S:
+                    judge, self.heard, self.judging = " ".join(self.heard), [], True
+                due = (not self.heard and not self.judging and not speaking and now > self.deadline)
+            # keep the mic open for the whole reply window (the normal awake window is shorter)
+            self.agent.gate.awake_until = max(self.agent.gate.awake_until, time.monotonic() + 1.0)
+            if judge is not None:
+                threading.Thread(target=self._judge, args=(judge,), daemon=True).start()
+            elif due:
+                state.emit("judge", "Check-in: no_response (nothing heard for 10 s)", status="no_response", source="code")
                 self.alert("No answer for 10 seconds after a fall")
 
     def alert(self, reason: str) -> str:
@@ -210,7 +356,7 @@ class FallResponder:
             self.agent.say("I could not find anyone to call. I've marked an alert.")
             return "Alert marked, but there is no contact to call."
         who, num = hit
-        self.agent.say(f"I'm calling your {who} now. Stay where you are.")
+        self.agent.say(CALL_LINE)
 
         def call():
             try:

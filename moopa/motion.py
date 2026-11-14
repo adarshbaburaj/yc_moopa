@@ -22,12 +22,13 @@ def _f(name, default):
         return float(default)
 
 
-FREEFALL_G = _f("FALL_FREEFALL_G", 0.45)
+# LIVE_DEMO.md stage 1 (fast, sensitive). Tune from the TUNE lines printed for every candidate.
+FREEFALL_G = _f("FALL_FREEFALL_G", 0.4)
 FREEFALL_MIN_S = 0.08
-IMPACT_G = _f("FALL_IMPACT_G", 1.6)
-IMPACT_WINDOW_S = 1.2
+IMPACT_G = _f("FALL_IMPACT_G", 2.5)
+IMPACT_WINDOW_S = 1.5
 LANDING_S = 1.0
-STILL_S = _f("FALL_STILL_S", 4.0)
+STILL_S = _f("FALL_STILL_S", 3.0)
 STILL_STD_G = _f("FALL_STILL_STD_G", 0.08)
 
 
@@ -52,9 +53,10 @@ class FallDetector:
     """feed() every sample (t in seconds, from the band's own clock). Calls on_fall(details)
     once per fall and on_note(text) for the steps in between (for the dashboard timeline)."""
 
-    def __init__(self, on_fall, on_note=lambda text: None):
+    def __init__(self, on_fall, on_note=lambda text: None, on_raw=lambda text: None):
         self.on_fall = on_fall
         self.on_note = on_note
+        self.on_raw = on_raw  # one TUNE line per candidate: the raw numbers, to set thresholds from data
         self.buf: deque = deque(maxlen=50 * 20)  # (t, ax, ay, az, |a|)
         self._reset()
 
@@ -64,6 +66,7 @@ class FallDetector:
         self.ff_t = None
         self.impact_t = None
         self.peak = 0.0
+        self.low = 9.9
         self.before = None
 
     def feed(self, t: float, ax: float, ay: float, az: float):
@@ -81,10 +84,14 @@ class FallDetector:
         elif self.phase == "falling":
             if mag > self.peak:
                 self.peak = mag
+            if mag < self.low:
+                self.low = mag
             if mag >= IMPACT_G:
                 self.impact_t = t
             if t - self.ff_t > IMPACT_WINDOW_S:
                 if self.impact_t is None:
+                    self.on_raw(f"TUNE free-fall min {self.low:.2f} g, peak {self.peak:.2f} g "
+                                f"(< impact {IMPACT_G} g) -> no fall")
                     self.on_note(f"Free-fall without an impact (peak {self.peak:.1f} g): not a fall")
                     self._reset()
                 else:
@@ -98,15 +105,32 @@ class FallDetector:
             mags = [s[4] for s in after]
             mean = sum(mags) / len(mags)
             std = math.sqrt(sum((m - mean) ** 2 for m in mags) / len(mags))
+            turn = _angle(self.before, _mean_dir(after))
+            raw = (f"min {self.low:.2f} g, peak {self.peak:.2f} g, free-fall {int((self.impact_t - self.ff_t) * 1000)} ms, "
+                   f"still-std {std:.3f} g (max {STILL_STD_G}), turn {turn if turn is None else round(turn)} deg")
             if std <= STILL_STD_G:
-                turn = _angle(self.before, _mean_dir(after))
-                details = {"peak_g": round(self.peak, 2), "turn_deg": None if turn is None else round(turn),
-                           "freefall_s": round(self.impact_t - self.ff_t, 2), "still_s": STILL_S}
+                details = {"peak_g": round(self.peak, 2), "min_g": round(self.low, 2),
+                           "turn_deg": None if turn is None else round(turn),
+                           "freefall_s": round(self.impact_t - self.ff_t, 2),
+                           "freefall_ms": int((self.impact_t - self.ff_t) * 1000),
+                           "still_s": STILL_S, "still_std_g": round(std, 3),
+                           "series_10hz": self._series(t)}
+                self.on_raw("TUNE " + raw + " -> FALL")
                 self._reset()
                 self.on_fall(details)
             else:
+                self.on_raw("TUNE " + raw + " -> moving again, no fall")
                 self.on_note(f"Moving after the impact (variation {std:.2f} g): not a fall")
                 self._reset()
+
+    def _series(self, now: float) -> list[float]:
+        """The last 10 s of |a| at 10 Hz (bin means), for the Gemini check."""
+        out = []
+        for i in range(100):
+            lo, hi = now - 10 + i * 0.1, now - 10 + (i + 1) * 0.1
+            b = [s[4] for s in self.buf if lo <= s[0] < hi]
+            out.append(round(sum(b) / len(b), 2) if b else None)
+        return out
 
 
 def describe(d: dict) -> str:

@@ -562,12 +562,13 @@ class Agent:
 
     def _on_final(self, text: str) -> bool:
         """Returns True if a shortcut consumed this transcript."""
+        consumed = False
         for hook in list(self.transcript_hooks):
             try:
-                hook(text)
+                consumed = bool(hook(text)) or consumed
             except Exception as e:
                 logger.warning(f"transcript hook: {e}")
-        return self._shop_shortcut(text)
+        return True if consumed else self._shop_shortcut(text)
 
     # ---- demo shortcut: "yoga mat" -> shop deterministically; the yes that follows -> checkout
     _YOGA = re.compile(r"\byoga\b", re.I)

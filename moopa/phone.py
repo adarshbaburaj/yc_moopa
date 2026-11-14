@@ -163,11 +163,17 @@ def _halo_cmd(action: str) -> None:
 
 
 @contextmanager
-def working(linger: float = 0.0):
-    """Halo on while the block runs (nested uses share one halo); off `linger` s after the last ends."""
+def working(linger: float = 0.0, label: str | None = None):
+    """Halo on while the block runs (nested uses share one halo); off `linger` s after the last ends.
+    `label` ("Calling Grandson in NYC…") is shown by the dashboard's mascot while the work runs."""
     global _halo_users
+    if label:
+        state.update("working", label)
     if dry_run or os.getenv("MOOPA_HALO", "1") == "0":
-        yield
+        try:
+            yield
+        finally:
+            state.update("working", None)
         return
     with _halo_lock:
         _halo_users += 1
@@ -195,6 +201,7 @@ def working(linger: float = 0.0):
                 last = _halo_users == 0
             if last:
                 _halo_cmd("hide")
+                state.update("working", None)
         if linger:
             _threading.Timer(linger, off).start()
         else:
@@ -279,7 +286,7 @@ def start_phone_voice(port: int | None) -> bool:
 
 def call_number(number: str, who: str = "") -> None:
     number = re.sub(r"[^\d+]", "", number)
-    with working(linger=3):
+    with working(linger=3, label=f"Calling {who or number}…"):
         _log(f"Calling {who or number}")
         adb("am", "start", "-a", "android.intent.action.CALL", "-d", f"tel:{number}")
 
@@ -452,7 +459,7 @@ def _node_at(nodes, x, y):
 
 def run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
     """Blocking. Returns a short sentence for the voice agent to speak from."""
-    with working(linger=1.5):
+    with working(linger=1.5, label="Working on your phone…"):
         return _run_task(goal, max_steps, extra)
 
 
@@ -553,7 +560,7 @@ def shop(item: str) -> str:
     if dry_run:
         _log(f"(dry-run) Amazon search: {item}")
         return f"(dry run) I would add a {item} to the Amazon cart."
-    with working(linger=1.5):
+    with working(linger=1.5, label=f"Looking for a {item}…"):
         domain = os.getenv("AMAZON_DOMAIN", "amazon.ae")
         _log(f'Searching Amazon for "{item}"')
         adb("am", "start", "-a", "android.intent.action.VIEW", "-d",
@@ -576,7 +583,7 @@ def checkout_preview() -> str:
     if dry_run:
         _log("(dry-run) Amazon checkout preview")
         return "(dry run) I would open the final order screen and stop."
-    with working(linger=1.5):
+    with working(linger=1.5, label="Getting your order ready…"):
         domain = os.getenv("AMAZON_DOMAIN", "amazon.ae")
         _log("Opening the Amazon cart")
         adb("am", "start", "-a", "android.intent.action.VIEW", "-d",
@@ -596,7 +603,7 @@ def checkout_preview() -> str:
 
 def video_call(number: str, who: str) -> str:
     """Open the WhatsApp chat (fast path), then press the video icon via its content description."""
-    with working(linger=3):
+    with working(linger=3, label=f"Calling {who}…"):
         return _video_call(number, who)
 
 

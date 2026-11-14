@@ -60,7 +60,8 @@ class BandLink:
         self._decoder = None
         self.motion_q: deque = deque(maxlen=4000)
         self._motion_ok = False
-        self.detector = FallDetector(self._on_motion_fall, lambda text: state.emit("band", text))
+        self.detector = FallDetector(self._on_motion_fall, lambda text: state.emit("band", text),
+                                     lambda text: console.show(f"  [fall] {text}"))
         self._fall_at = None
         self._first_steps = None
         self._last_activity = None
@@ -235,7 +236,7 @@ class BandLink:
         text = describe(details)
         console.log(f"[band] FALL: {text}")
         for h in list(self.fall_hooks):
-            h("band", text)
+            h("band", text, details)
 
     def _wake(self):
         self._wake_event_idx = len(state.snapshot()["events"]) or 1

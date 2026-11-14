@@ -21,6 +21,7 @@ state = {
     "activity": {"steps": 0, "active_s": 0.0, "still_s": 0.0, "current": None, "falls": 0},
     "devices": {"band": "off", "ring": "off", "camera": "off", "phone": "off", "mic": "mac"},
     "pending_confirmation": None,
+    "working": None,  # what the agent is doing on the phone right now, for the mascot
 }
 events: deque = deque(maxlen=300)
 
