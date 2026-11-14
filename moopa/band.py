@@ -88,17 +88,25 @@ class BandLink:
             print("[band] BAND_NUMBER is not set in .env (the number on the band's bag). Running without the band.")
             state.update("devices.band", "off")
             return
-        try:
-            print(f"[band] connecting to Vexo-HACK-{number:02d}{' (pretend band)' if self.sim else ''}... "
-                  f"{'' if self.sim else 'double-tap the band first'}")
-            self.band = self._connect(number)
-        except Exception as e:
-            print(f"[band] could not connect: {e}")
-            state.update("devices.band", "off")
-            return
+        print(f"[band] connecting to Vexo-HACK-{number:02d}{' (pretend band)' if self.sim else ''}... "
+              f"{'' if self.sim else 'double-tap the band (blinking blue = findable)'}")
+        state.update("devices.band", "connecting")
+        attempt = 0
+        while self.band is None:  # keep trying: a first attempt often times out right after startup
+            attempt += 1
+            try:
+                self.band = self._connect(number)
+            except Exception as e:
+                msg = str(e) or type(e).__name__
+                print(f"[band] attempt {attempt} failed: {msg[:140]}")
+                if attempt == 1 or attempt % 5 == 0:
+                    print("[band] still trying. Double-tap the band now; close any dashboard tab "
+                          "or other program connected to it.")
+                time.sleep(2)
         b = self.band
         state.update("devices.band", "sim" if self.sim else "on")
         state.emit("system", f"Band connected: {b.name}{' (pretend)' if self.sim else ''}")
+        print(f"[band] CONNECTED: {b.name}. Double-tap it to talk.")
         put = lambda item: self.inbox.put_nowait(item) if not self.inbox.full() else None  # noqa: E731
         b.on("double-tap", lambda e: put(("double-tap", None)))
         b.on("free-fall", lambda e: put(("free-fall", None)))
@@ -137,6 +145,7 @@ class BandLink:
             kind, data = self.inbox.get_nowait()
             if kind == "double-tap":
                 state.emit("band", "Double-tap")
+                print("[band] double-tap")
                 if any(h() for h in list(self.double_tap_hooks)):
                     continue
                 self._wake()
