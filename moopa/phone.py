@@ -28,8 +28,19 @@ APPS = {
 
 
 def contacts() -> dict[str, str]:
-    """name (lowercase) -> number, from .env. 'grandson' always maps to GRANDSON_NUMBER."""
+    """label (lowercase) -> number, from .env.
+
+    CONTACTS="Grandfather from NYC|Ashton|grandpa:+19175550100; Nurse:+1..."  (aliases split by |)
+    GRANDSON_NAME / GRANDSON_NUMBER still work ('grandson' always maps to that number).
+    """
     out = {}
+    for entry in os.getenv("CONTACTS", "").split(";"):
+        if ":" not in entry:
+            continue
+        names, num = entry.rsplit(":", 1)
+        for alias in names.split("|"):
+            if alias.strip() and num.strip():
+                out[alias.strip().lower()] = num.strip()
     num = os.getenv("GRANDSON_NUMBER", "").strip()
     if num:
         out["grandson"] = num
@@ -39,14 +50,32 @@ def contacts() -> dict[str, str]:
     return out
 
 
+_SYNONYMS = {"grandpa": "grandfather", "granddad": "grandfather", "grandpops": "grandfather",
+             "grandma": "grandmother", "granny": "grandmother", "nyc": "new york", "ny": "new york"}
+_STOP = {"my", "the", "a", "call", "to", "please", "video", "from", "on", "whatsapp"}
+
+
+def _words(s: str) -> set[str]:
+    s = s.lower()
+    for k, v in _SYNONYMS.items():
+        s = re.sub(rf"\b{k}\b", v, s)
+    return {w for w in re.findall(r"[a-z]+", s) if w not in _STOP}
+
+
 def find_contact(name: str) -> tuple[str, str] | None:
-    """Fuzzy-ish lookup: 'my grandson', 'Arjun', 'grandson arjun' all work."""
+    """Best word overlap: 'my grandpa', 'Ashton', 'grandfather in New York' all match."""
     book = contacts()
-    n = name.lower()
+    want = _words(name)
+    best, score = None, 0
     for key, num in book.items():
-        if key in n or n in key:
-            return key, num
-    return None
+        s = len(want & _words(key))
+        if s > score:
+            best, score = (key, num), s
+    return best
+
+
+def contact_names() -> list[str]:
+    return sorted(contacts())
 
 
 def _log(text: str, **data) -> None:

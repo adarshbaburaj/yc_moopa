@@ -228,8 +228,8 @@ class ReplyWatch(FrameProcessor):
 
 # ---------------------------------------------------------------- persona + tools
 def persona() -> str:
-    gs = os.getenv("GRANDSON_NAME", "").strip()
-    who = f" Their grandson is called {gs}." if gs else ""
+    names = phone.contact_names()
+    who = f" Their contacts: {', '.join(names)}." if names else ""
     return f"""You are Moopa, a gentle helper living in an elder's wristband. You operate their
 Android phone for them, so they never have to touch a screen.{who}
 
