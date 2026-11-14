@@ -127,12 +127,57 @@ def ready() -> str | None:
     return None
 
 
+# ---------- halo (halo-app/: a glowing border on the phone while the agent works) ----------
+import threading as _threading
+from contextlib import contextmanager
+
+_halo_lock = _threading.Lock()
+_halo_users = 0
+
+
+def _halo_cmd(action: str) -> None:
+    try:
+        adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", action, timeout=5)
+    except Exception as e:  # halo app not installed: the demo goes on without it
+        print(f"[halo] {action} failed: {str(e)[:80]}")
+
+
+@contextmanager
+def working(linger: float = 0.0):
+    """Halo on while the block runs (nested uses share one halo); off `linger` s after the last ends."""
+    global _halo_users
+    if dry_run or os.getenv("MOOPA_HALO", "1") == "0":
+        yield
+        return
+    with _halo_lock:
+        _halo_users += 1
+        first = _halo_users == 1
+    if first:
+        _halo_cmd("show")
+        state.emit("action", "Halo on: agent is working on the phone")
+    try:
+        yield
+    finally:
+        def off():
+            global _halo_users
+            with _halo_lock:
+                _halo_users -= 1
+                last = _halo_users == 0
+            if last:
+                _halo_cmd("hide")
+        if linger:
+            _threading.Timer(linger, off).start()
+        else:
+            off()
+
+
 # ---------- fast paths ----------
 
 def call_number(number: str, who: str = "") -> None:
     number = re.sub(r"[^\d+]", "", number)
-    _log(f"Calling {who or number}")
-    adb("am", "start", "-a", "android.intent.action.CALL", "-d", f"tel:{number}")
+    with working(linger=3):
+        _log(f"Calling {who or number}")
+        adb("am", "start", "-a", "android.intent.action.CALL", "-d", f"tel:{number}")
 
 
 def end_call() -> None:
@@ -298,6 +343,11 @@ def _node_at(nodes, x, y):
 
 def run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
     """Blocking. Returns a short sentence for the voice agent to speak from."""
+    with working(linger=1.5):
+        return _run_task(goal, max_steps, extra)
+
+
+def _run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
     if dry_run:
         _log(f"Navigator (dry-run): {goal}")
         return f"(dry run) I would now do this on the phone: {goal}."
@@ -386,6 +436,11 @@ def run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
 
 def video_call(number: str, who: str) -> str:
     """Open the WhatsApp chat (fast path), then press the video icon via its content description."""
+    with working(linger=3):
+        return _video_call(number, who)
+
+
+def _video_call(number: str, who: str) -> str:
     if dry_run:
         _log(f"(dry-run) WhatsApp video call {who}")
         return f"(dry run) Video calling {who}."

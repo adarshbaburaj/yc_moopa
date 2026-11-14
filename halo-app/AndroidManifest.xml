@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Moopa Halo: a glowing border drawn over every app while the Moopa agent operates the phone.
+     Toggled from the laptop over adb:
+       adb shell am start-foreground-service -n com.moopa.halo/.HaloService -a show
+       adb shell am start-foreground-service -n com.moopa.halo/.HaloService -a hide -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.moopa.halo"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:label="Moopa Halo"
+        android:icon="@android:drawable/star_on"
+        android:allowBackup="false">
+        <service
+            android:name=".HaloService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Shows a glowing screen border while an assistant operates the phone" />
+        </service>
+    </application>
+</manifest>
