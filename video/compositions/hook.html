@@ -1,0 +1,46 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #1d1b18; font-family: "Inter", sans-serif; }
+    #root .v { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; }
+    #root .cap { position: absolute; left: 192px; right: 192px; bottom: 132px; color: #fff; font-weight: 700; font-size: 66px;
+                 line-height: 1.12; letter-spacing: -0.02em; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
+    #root .who { display: block; font-size: 34px; font-weight: 700; letter-spacing: 0; opacity: 0.85; margin-bottom: 8px; }
+    #root .w { display: inline-block; white-space: pre; }
+    #hook-time { position: absolute; left: 192px; top: 110px; color: #fff; font-weight: 900; font-size: 190px;
+                 letter-spacing: -0.04em; line-height: 1; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45); }
+    #hook-time small { font-size: 80px; letter-spacing: -0.02em; margin-left: 18px; }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <!-- GX011407: double-tap, "Call my grandson", WhatsApp video call under the halo, grandson answers -->
+    <video id="hook-v1" class="clip v" src="assets/clips/call.mp4" data-start="0" data-duration="7" data-media-start="0" data-track-index="1" data-has-audio="true" data-volume="1" playsinline></video>
+    <video id="hook-v2" class="clip v" src="assets/clips/call.mp4" data-start="7" data-duration="4" data-media-start="7" data-playback-rate="2.5" data-track-index="2" muted playsinline></video>
+    <video id="hook-v3" class="clip v" src="assets/clips/call.mp4" data-start="11" data-duration="6.5" data-media-start="17" data-track-index="3" muted playsinline></video>
+
+    <div id="hook-time" class="clip" data-start="0" data-duration="3.4" data-track-index="4"><span class="w">9:12</span><small class="w">AM</small></div>
+    <div id="hook-listen" class="clip cap" data-start="3.5" data-duration="1.5" data-track-index="5"><span class="who">Moopa</span><span class="w">“I'm </span><span class="w">listening.”</span></div>
+    <div id="hook-say" class="clip cap" data-start="5.05" data-duration="2.25" data-track-index="5"><span class="who">Grandpa</span><span class="w">“Call </span><span class="w">my </span><span class="w">grandson.”</span></div>
+    <div id="hook-glow" class="clip cap" data-start="7.45" data-duration="3.4" data-track-index="5"><span class="w">The </span><span class="w">glow </span><span class="w">means </span><span class="w">Moopa </span><span class="w">is </span><span class="w">working.</span></div>
+    <div id="hook-wa" class="clip cap" data-start="11.2" data-duration="3.2" data-track-index="5"><span class="w">WhatsApp </span><span class="w">video </span><span class="w">call </span><span class="w">to </span><span class="w">Grandson </span><span class="w">in </span><span class="w">NYC.</span></div>
+    <div id="hook-rest" class="clip cap" data-start="14.5" data-duration="2.9" data-track-index="5"><span class="w">One </span><span class="w">sentence. </span><span class="w">The </span><span class="w">phone </span><span class="w">did </span><span class="w">the </span><span class="w">rest.</span></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const inWords = (id, t) => document.querySelectorAll("#" + id + " .w").forEach((w, i) =>
+      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, t + i * 0.067));
+    const outBlur = (id, t) => tl.to("#" + id + " .w, #" + id + " .who", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, t);
+    const inWho = (id, t) => tl.fromTo("#" + id + " .who", { opacity: 0 }, { opacity: 0.85, duration: 0.2, ease: "power2.out" }, t);
+
+    // time stamp: per word blur-in, then out
+    inWords("hook-time", 0.25); outBlur("hook-time", 3.1);
+    inWho("hook-listen", 3.5); inWords("hook-listen", 3.55); outBlur("hook-listen", 4.75);
+    // words land on the real speech: Call 5.12, my 5.44, grandson 5.68
+    inWho("hook-say", 5.05);
+    const say = document.querySelectorAll("#hook-say .w");
+    [5.1, 5.42, 5.66].forEach((t, i) => tl.fromTo(say[i], { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, t));
+    outBlur("hook-say", 7.08);
+    inWords("hook-glow", 7.5); outBlur("hook-glow", 10.6);
+    inWords("hook-wa", 11.25); outBlur("hook-wa", 14.2);
+    inWords("hook-rest", 14.55); outBlur("hook-rest", 17.15);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

@@ -5,57 +5,42 @@
     <meta name="viewport" content="width=1920, height=1080" />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
     <style>
-      /* Placeholders: replace all three with the film's own palette and display face. */
       :root {
-        --ground: #000;
-        --ink: #ffffff;
-        --font-display: sans-serif;
+        --ground: #f4f1ec;
+        --ink: #1d1b18;
+        --font-display: "Inter", sans-serif;
       }
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: var(--ground);
-      }
-      #root {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--font-display);
-      }
-      #title {
-        color: var(--ink);
-        font-size: 72px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ground); }
+      #root { width: 100%; height: 100%; position: relative; font-family: var(--font-display); }
     </style>
   </head>
   <body>
-    <div
-      id="root"
-      data-composition-id="main"
-      data-start="0"
-      data-duration="10"
-      data-width="1920"
-      data-height="1080"
-    >
-      <h1 id="title" class="clip" data-start="0" data-duration="10" data-track-index="0">Title</h1>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="125.9" data-width="1920" data-height="1080">
+      <div id="hook" data-composition-id="hook" data-composition-src="compositions/hook.html" data-start="0" data-duration="17.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="band" data-composition-id="band" data-composition-src="compositions/band.html" data-start="17.5" data-duration="7" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="yoga" data-composition-id="yoga" data-composition-src="compositions/yoga.html" data-start="24.5" data-duration="30" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="ring" data-composition-id="ring" data-composition-src="compositions/ring.html" data-start="54.5" data-duration="8.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="fall" data-composition-id="fall" data-composition-src="compositions/fall.html" data-start="63" data-duration="14" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="brain" data-composition-id="brain" data-composition-src="compositions/brain.html" data-start="77" data-duration="24" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="nosiri" data-composition-id="nosiri" data-composition-src="compositions/nosiri.html" data-start="101" data-duration="6.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="proof" data-composition-id="proof" data-composition-src="compositions/proof.html" data-start="107.5" data-duration="10.4" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="endcard" data-composition-id="endcard" data-composition-src="compositions/endcard.html" data-start="117.9" data-duration="8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <!-- Sound: ElevenLabs-generated music loop (ducked under the real speech) + effects -->
+      <audio id="music" class="clip" src="assets/audio/music.mp3" data-start="0" data-duration="125.9" data-track-index="10" data-volume="0.45"></audio>
+      <audio id="sfx-whoosh-1" class="clip" src="assets/audio/whoosh.mp3" data-start="17.45" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-whoosh-2" class="clip" src="assets/audio/whoosh.mp3" data-start="25.75" data-track-index="11" data-volume="0.45"></audio>
+      <audio id="sfx-whoosh-3" class="clip" src="assets/audio/whoosh.mp3" data-start="78.85" data-track-index="11" data-volume="0.5"></audio>
+      <audio id="sfx-whoosh-4" class="clip" src="assets/audio/whoosh.mp3" data-start="101.0" data-track-index="11" data-volume="0.6"></audio>
+      <audio id="sfx-pop-1" class="clip" src="assets/audio/pop.mp3" data-start="107.65" data-track-index="12" data-volume="0.6"></audio>
+      <audio id="sfx-pop-2" class="clip" src="assets/audio/pop.mp3" data-start="111.15" data-track-index="12" data-volume="0.6"></audio>
+      <audio id="sfx-pop-3" class="clip" src="assets/audio/pop.mp3" data-start="114.35" data-track-index="12" data-volume="0.6"></audio>
+      <audio id="sfx-pop-4" class="clip" src="assets/audio/pop.mp3" data-start="122.3" data-track-index="12" data-volume="0.7"></audio>
     </div>
     <script>
+      window.__timelines = window.__timelines || {};
       const tl = gsap.timeline({ paused: true });
-      // Example: tl.fromTo("#title", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18, ease: "power4.out" }, 0);
       window.__timelines["main"] = tl;
-      tl.seek(0);
     </script>
   </body>
 </html>

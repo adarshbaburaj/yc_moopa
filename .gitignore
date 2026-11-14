@@ -18,3 +18,5 @@ clips/*
 video/assets/clips/
 video/renders/
 video/node_modules/
+video/.media/
+video/.hyperframes/
