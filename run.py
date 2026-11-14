@@ -176,8 +176,9 @@ async def main():
                     if ok:
                         console.show("\n  👍  READY FOR ACTION — double-tap the band to talk"
                                      if args.band != "off" else "\n  👍  READY FOR ACTION — press SPACE to talk")
-                        console.show(f"     (dashboard http://127.0.0.1:{port} · SPACE talk · f pretend fall · "
-                                     f"c reset · q quit)\n")
+                        console.show(f"     grandpa screen  http://127.0.0.1:{port}/?view=grandpa\n"
+                                     f"     family screen   http://127.0.0.1:{port}/?view=family\n"
+                                     f"     (SPACE talk · f pretend fall · c reset · q quit)\n")
                         return
             await asyncio.sleep(0.5)
 

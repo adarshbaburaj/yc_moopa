@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Moopa · Family view</title>
+<title>Moopa</title>
 <style>
   :root {
     --bg: #f4f1ec; --card: #ffffff; --ink: #1d1b18; --muted: #6d665c; --line: #e4ded4;
@@ -11,46 +11,60 @@
     --bad: #c62828; --bad-bg: #fde7e7; --accent: #5b3fd1;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  body.alert { background: #b71c1c; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .view { display: none; }
+  body[data-view="grandpa"] #grandpa, body[data-view="family"] #family { display: block; }
+  canvas.moo { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+
+  /* ---------- grandpa view: mostly empty, warm, huge ---------- */
+  #grandpa { min-height: 100vh; position: relative; }
+  body[data-view="grandpa"] { background: #f7efe3; }
+  body[data-view="grandpa"].alert { background: #fbe3e1; }
+  .g-stage { min-height: calc(100vh - 110px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; }
+  #moo-big { width: min(46vmin, 480px); height: min(46vmin, 480px); }
+  #moo-big.pulse { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  #g-text { font-size: clamp(40px, 6vw, 84px); font-weight: 750; letter-spacing: -0.02em; line-height: 1.1; text-align: center; max-width: 18ch; }
+  #g-sub { font-size: clamp(22px, 2.6vw, 34px); color: var(--muted); text-align: center; max-width: 30ch; min-height: 1.2em; }
+  .g-strip { position: absolute; left: 0; right: 0; bottom: 0; height: 110px; display: flex; justify-content: center; gap: 56px; align-items: center;
+             color: var(--muted); font-size: 24px; border-top: 1px solid #eadfcf; }
+  .g-strip b { color: var(--ink); font-size: 30px; margin-right: 6px; font-variant-numeric: tabular-nums; }
+  .sim { font-size: 13px; font-weight: 700; letter-spacing: .05em; color: var(--warn); background: var(--warn-bg); padding: 2px 6px; border-radius: 5px; margin-left: 6px; vertical-align: middle; }
+  @media (prefers-reduced-motion: reduce) { #moo-big.pulse { animation: none; } }
+
+  /* ---------- family view ---------- */
+  body.alert[data-view="family"] { background: #b71c1c; }
   .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 24px 40px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
   .brand b { font-size: 22px; letter-spacing: -0.02em; }
   .brand span { color: var(--muted); }
   body.alert .brand b, body.alert .brand span { color: #fff; }
-  .dot { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--accent), #2f80ed, #e0559b, var(--accent)); }
+  #moo-mini { width: 64px; height: 64px; background: #fff; border-radius: 16px; border: 1px solid var(--line); }
   .devices { display: flex; flex-wrap: wrap; gap: 8px; }
   .dev { font-size: 13px; padding: 5px 10px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--muted); }
   .dev.on { color: var(--ok); border-color: #bfe0cc; }
   .dev.sim { color: var(--warn); border-color: #f0d49a; }
-
-  .status { border-radius: 18px; padding: 26px 28px; display: flex; align-items: center; gap: 22px;
-            background: var(--ok-bg); border: 1px solid #c4e3d1; margin-bottom: 18px; }
+  .status { border-radius: 18px; padding: 26px 28px; display: flex; align-items: center; gap: 22px; background: var(--ok-bg); border: 1px solid #c4e3d1; margin-bottom: 18px; }
   .status .big { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; color: var(--ok); }
   .status .why { color: var(--muted); font-size: 18px; }
   .status.checking { background: var(--warn-bg); border-color: #f0d49a; }
   .status.checking .big { color: var(--warn); }
-  .status.alert { background: #fff; border: 4px solid #fff; animation: pulse 1s ease-in-out infinite alternate; }
+  .status.alert { background: #fff; border: 4px solid #fff; }
   .status.alert .big { color: var(--bad); font-size: 52px; }
   .status.alert .why { color: var(--ink); font-size: 20px; }
-  .status.alert .icon { background: var(--bad); color: #fff; font-weight: 800; }
-  .status.checking .icon { background: var(--warn); color: #fff; font-weight: 800; }
-  .status.ok .icon { background: var(--ok); color: #fff; }
-  @keyframes pulse { from { box-shadow: 0 0 0 0 rgba(255,255,255,.0); } to { box-shadow: 0 0 0 14px rgba(255,255,255,.35); } }
-  .status .icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; background: #fff; flex: none; }
-
+  .status .icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; color: #fff; font-weight: 800; flex: none; background: var(--ok); }
+  .status.checking .icon { background: var(--warn); }
+  .status.alert .icon { background: var(--bad); }
   .grid { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 18px; }
   @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
-  .card h2 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: none; }
+  .card h2 { margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--muted); }
   .vital { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
   .vital .n { font-size: 54px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .vital .u { color: var(--muted); font-size: 18px; }
   .vital .l { margin-left: auto; color: var(--muted); }
-  .heart { color: var(--bad); display: inline-block; animation: beat 0.85s ease-in-out infinite; }
-  @keyframes beat { 0%,100% { transform: scale(1); } 15% { transform: scale(1.25); } 30% { transform: scale(1); } }
+  .heart { color: var(--bad); }
   .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
   .tag.live { background: var(--ok-bg); color: var(--ok); }
   .tag.simulated { background: var(--warn-bg); color: var(--warn); }
@@ -59,9 +73,8 @@
   .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .row:last-child { border-bottom: 0; }
   .row b { font-size: 22px; font-variant-numeric: tabular-nums; }
-
   .timeline { max-height: 470px; overflow-y: auto; }
-  .ev { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .ev { display: grid; grid-template-columns: 70px 1fr; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
   .ev time { color: var(--muted); font-size: 12px; padding-top: 3px; font-variant-numeric: tabular-nums; }
   .ev .who { font-weight: 600; margin-right: 6px; }
   .ev.transcript .who { color: #2f6fd6; }
@@ -71,26 +84,43 @@
   .ev.judge .who { color: #8a5a00; }
   .ev.alert { background: var(--bad-bg); }
   .pending { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #efeafe; color: #3b2a8f; display: none; }
-  .controls { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .controls { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   button { font: inherit; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); cursor: pointer; }
   button.danger { color: var(--bad); }
-  body.alert .controls button { background: #fff; }
+  .controls a { color: var(--muted); margin-left: auto; }
+  body.alert .controls a { color: #fff; }
   .offline { color: var(--bad); font-weight: 600; display: none; }
 </style>
 </head>
-<body>
+<body data-view="family">
+
+<!-- ======================= GRANDPA ======================= -->
+<div id="grandpa" class="view">
+  <div class="g-stage">
+    <canvas id="moo-big" class="moo" width="24" height="24" aria-label="Moo, Moopa's helper"></canvas>
+    <div id="g-text">Hello.</div>
+    <div id="g-sub"></div>
+  </div>
+  <div class="g-strip">
+    <span><b id="g-steps">0</b>steps today</span>
+    <span><b id="g-hr">–</b>heart rate<span id="g-sim" class="sim" style="display:none">SIMULATED</span></span>
+    <span id="g-band">band: –</span>
+  </div>
+</div>
+
+<!-- ======================= FAMILY ======================= -->
+<div id="family" class="view">
 <div class="wrap">
   <header>
-    <div class="brand"><div class="dot"></div><div><b>Moopa</b><br><span>Family view · live from the band, ring and phone</span></div></div>
+    <div class="brand"><canvas id="moo-mini" class="moo" width="24" height="24"></canvas>
+      <div><b>Moopa · Family view</b><br><span id="mini-text">Live from the band, ring and phone</span></div></div>
     <div class="devices" id="devices"></div>
   </header>
-
   <div class="status" id="status">
     <div class="icon" id="icon">✓</div>
     <div><div class="big" id="big">All good</div><div class="why" id="why">Moopa is watching over them.</div></div>
   </div>
   <p class="offline" id="offline">Lost connection to Moopa. Retrying…</p>
-
   <div class="grid">
     <div class="card">
       <h2>Vitals from the ring <span class="tag none" id="src">NO READINGS</span></h2>
@@ -112,75 +142,170 @@
       <div class="timeline" id="timeline"></div>
     </div>
   </div>
-
   <div class="controls">
     <button onclick="act('double_tap')">Double-tap band</button>
     <button class="danger" onclick="act('fall')">Pretend fall</button>
     <button onclick="act('cancel')">Clear alert</button>
+    <a href="?view=grandpa">Grandpa view →</a>
   </div>
+</div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const WHO = { transcript: "Elder", agent: "Moopa", action: "Phone", fall: "Fall", alert: "ALERT",
-              judge: "System One", band: "Band", vitals: "Ring", system: "System" };
+const params = new URLSearchParams(location.search);
+document.body.dataset.view = params.get("view") === "grandpa" ? "grandpa" : "family";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ======================= Moo: our own pixel cloud-bun, 24x24 ======================= */
+const C = { o: "#3a2f2a", b: "#fffaf2", s: "#efe2cf", k: "#2a211d", p: "#ffb3c1", r: "#e5484d", y: "#ffc93c", v: "#7c4dff", w: "#ffffff" };
+const BODY = (() => { // cloud-bun mask from circles, decided once
+  const m = [];
+  for (let y = 0; y < 24; y++) { m.push([]); for (let x = 0; x < 24; x++) {
+    const cx = x + 0.5, cy = y + 0.5;
+    const e = ((cx - 12) / 9.2) ** 2 + ((cy - 15.2) / 6.6) ** 2 <= 1;
+    const b1 = (cx - 7.5) ** 2 + (cy - 10) ** 2 <= 16, b2 = (cx - 12) ** 2 + (cy - 8.3) ** 2 <= 20, b3 = (cx - 16.5) ** 2 + (cy - 10) ** 2 <= 16;
+    m[y].push(e || b1 || b2 || b3);
+  } }
+  return m;
+})();
+function drawMoo(cv, mood, t) {
+  const g = cv.getContext("2d"); g.clearRect(0, 0, 24, 24);
+  const px = (x, y, c) => { if (x >= 0 && x < 24 && y >= 0 && y < 24) { g.fillStyle = C[c] || c; g.fillRect(x, y, 1, 1); } };
+  let dx = 0, dy = 0;
+  if (!REDUCED) {
+    if (mood === "idle") { dy = Math.round(Math.sin(t / 600) * 0.6); if (t % 7000 < 450) dy -= Math.round(Math.sin((t % 7000) / 450 * Math.PI) * 3); }
+    if (mood === "working") dx = Math.round(Math.sin(t / 160) * 3);
+    if (mood === "done") dy = -Math.round(Math.abs(Math.sin(t / 220)) * 3);
+    if (mood === "listening") dy = Math.round(Math.sin(t / 400) * 0.6);
+  }
+  // body with outline and a soft shade on the lower edge
+  for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+    if (!BODY[y][x]) continue;
+    const edge = !BODY[y - 1]?.[x] || !BODY[y + 1]?.[x] || !BODY[y][x - 1] || !BODY[y][x + 1];
+    px(x + dx, y + dy, edge ? "o" : (y >= 19 ? "s" : "b"));
+  }
+  // feet (working: they alternate)
+  const step = mood === "working" && !REDUCED ? Math.floor(t / 160) % 2 : 0;
+  px(8 + dx, 22 + dy - step, "o"); px(9 + dx, 22 + dy - step, "o"); px(14 + dx, 22 + dy - (1 - step), "o"); px(15 + dx, 22 + dy - (1 - step), "o");
+  // eyes
+  const blink = (t % 4200) > 4060 && mood !== "check";
+  const ex = mood === "waiting" ? 1 : 0, ey = mood === "waiting" ? -1 : 0; // looking up at the question
+  if (mood === "check") { // wide eyes
+    for (const x0 of [8, 14]) { px(x0 + dx, 13 + dy, "k"); px(x0 + 1 + dx, 13 + dy, "k"); px(x0 + dx, 14 + dy, "k"); px(x0 + 1 + dx, 14 + dy, "k"); px(x0 + dx, 13 + dy, "w"); }
+  } else if (mood === "done" || mood === "alert") { // happy / calm closed eyes ^ ^
+    for (const x0 of [8, 14]) { px(x0 + dx, 14 + dy, "k"); px(x0 + 1 + dx, 13 + dy, "k"); px(x0 + 2 + dx, 14 + dy, "k"); }
+  } else if (blink) {
+    px(9 + dx, 14 + dy, "k"); px(10 + dx, 14 + dy, "k"); px(14 + dx, 14 + dy, "k"); px(15 + dx, 14 + dy, "k");
+  } else {
+    px(9 + ex + dx, 13 + ey + dy, "k"); px(9 + ex + dx, 14 + ey + dy, "k"); px(15 + ex + dx, 13 + ey + dy, "k"); px(15 + ex + dx, 14 + ey + dy, "k");
+  }
+  // cheeks + mouth
+  px(6 + dx, 16 + dy, "p"); px(7 + dx, 16 + dy, "p"); px(17 + dx, 16 + dy, "p"); px(18 + dx, 16 + dy, "p");
+  if (mood === "check") { px(12 + dx, 17 + dy, "k"); px(12 + dx, 18 + dy, "k"); }
+  else if (mood === "done") { px(11 + dx, 17 + dy, "k"); px(12 + dx, 17 + dy, "k"); px(11 + dx, 18 + dy, "r"); px(12 + dx, 18 + dy, "r"); }
+  else { px(11 + dx, 17 + dy, "k"); px(12 + dx, 17 + dy, "k"); }
+  // extras per mood
+  if (mood === "listening") { // antenna up + sound-wave dots
+    px(12 + dx, 3 + dy, "o"); px(12 + dx, 4 + dy, "o"); px(12 + dx, 2 + dy, "v");
+    const k = REDUCED ? 3 : Math.floor(t / 250) % 4;
+    for (let i = 0; i < k; i++) { px(20 + i, 6 - i + dy, "v"); px(3 - i, 6 - i + dy, "v"); }
+  }
+  if (mood === "waiting") { // "?" bubble
+    const q = [".yyy.", "y...y", "...y.", "..y..", ".....", "..y.."];
+    q.forEach((row, yy) => [...row].forEach((c, xx) => c === "y" && px(18 + xx, yy, "v")));
+  }
+  if (mood === "alert") { // holding a heart
+    const h = [".rr.rr.", "rrrrrrr", "rrrrrrr", ".rrrrr.", "..rrr..", "...r..."];
+    h.forEach((row, yy) => [...row].forEach((c, xx) => c === "r" && px(9 + xx + dx, 16 + yy + dy, "r")));
+  }
+  if (mood === "done" && !REDUCED) { // sparkle
+    const on = Math.floor(t / 200) % 2;
+    const sp = on ? [[3, 5], [20, 4], [21, 12]] : [[2, 9], [19, 7], [4, 14]];
+    sp.forEach(([x, y]) => { px(x, y, "y"); px(x - 1, y, "y"); px(x + 1, y, "y"); px(x, y - 1, "y"); px(x, y + 1, "y"); });
+  }
+}
+
+/* ======================= state -> mood ======================= */
+let S = {}, lastWorking = null, doneUntil = 0;
+function moodOf(s) {
+  if (s.status === "ALERT") return "alert";
+  if (s.status === "CHECKING") return "check";
+  if (s.pending_confirmation) return "waiting";
+  if (s.working) return "working";
+  if (Date.now() < doneUntil) return "done";
+  if (s.awake) return "listening";
+  return "idle";
+}
+function greeting() { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"; }
+function moodText(m, s) {
+  switch (m) {
+    case "alert": return ["I've called your family.", "Help is coming."];
+    case "check": return ["Are you okay?", "Say something, or tap your band twice if you're fine."];
+    case "waiting": { const q = (s.pending_confirmation || {}).question || ""; return [q.length && q.length < 70 ? q : "Shall I buy it? Say yes or no.", "Say yes or no."]; }
+    case "working": return [s.working, ""];
+    case "done": return ["Done!", ""];
+    case "listening": return ["I'm listening…", ""];
+    default: return [greeting() + ".", "Tap your band twice if you need me."];
+  }
+}
+function tick(t) {
+  const m = moodOf(S);
+  drawMoo($("moo-big"), m, t); drawMoo($("moo-mini"), m, t);
+  $("moo-big").classList.toggle("pulse", m === "check");
+  const [a, b] = moodText(m, S);
+  if ($("g-text").textContent !== a) $("g-text").textContent = a;
+  if ($("g-sub").textContent !== b) $("g-sub").textContent = b;
+  $("mini-text").textContent = "Moo: " + a;
+  requestAnimationFrame(tick);
+}
+
+/* ======================= family view ======================= */
+const WHO = { transcript: "Heard", agent: "Moopa", action: "Phone", fall: "Fall", alert: "ALERT", judge: "Verdict", band: "Band", vitals: "Ring", system: "System" };
 const SHOW = new Set(["transcript", "agent", "action", "fall", "alert", "judge", "vitals"]);
 const seen = new Set();
-
-function hhmm(ts) { const d = new Date(ts * 1000); return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }); }
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-
+const hhmm = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function addEvent(ev) {
   if (!ev || !SHOW.has(ev.kind)) return;
-  const key = ev.ts + ev.kind + ev.text;
-  if (seen.has(key)) return; seen.add(key);
-  const div = document.createElement("div");
-  div.className = "ev " + ev.kind;
+  const key = ev.ts + ev.kind + ev.text; if (seen.has(key)) return; seen.add(key);
+  const div = document.createElement("div"); div.className = "ev " + ev.kind;
   const text = ev.kind === "transcript" ? `“${esc(ev.text)}”` : esc(ev.text);
   div.innerHTML = `<time>${hhmm(ev.ts)}</time><div><span class="who">${WHO[ev.kind] || ev.kind}</span>${text}</div>`;
   $("timeline").prepend(div);
   while ($("timeline").children.length > 80) $("timeline").lastChild.remove();
 }
-
 function render(s) {
-  // status
-  const st = s.status || "OK", box = $("status");
-  box.className = "status " + st.toLowerCase();
+  if (lastWorking && !s.working) doneUntil = Date.now() + 3000;
+  lastWorking = s.working; S = s;
+  const st = s.status || "OK";
+  $("status").className = "status " + st.toLowerCase();
   document.body.classList.toggle("alert", st === "ALERT");
   if (st === "ALERT") {
-    $("icon").textContent = "!";
-    $("big").textContent = "Needs help now";
     const a = s.alert || {};
-    $("why").textContent = (a.reason || "Possible fall, no answer") + " · Moopa is calling family.";
+    $("icon").textContent = "!"; $("big").textContent = "Needs help now";
+    $("why").textContent = `${a.ts ? hhmm(a.ts) + " · " : ""}${a.reason || "Possible fall, no answer"} · Moopa is calling family.`;
   } else if (st === "CHECKING") {
-    $("icon").textContent = "?";
-    $("big").textContent = "Checking on them";
+    $("icon").textContent = "?"; $("big").textContent = "Checking on them";
     $("why").textContent = "Possible fall. Moopa asked “Are you okay?” and is listening for 10 seconds.";
   } else {
-    $("icon").textContent = "✓";
-    $("big").textContent = "All good";
-    $("why").textContent = s.awake ? "Moopa is listening to them right now." : "Moopa is watching over them.";
+    $("icon").textContent = "✓"; $("big").textContent = "All good";
+    $("why").textContent = s.working ? s.working : s.awake ? "Moopa is listening to them right now." : "Moopa is watching over them.";
   }
-  // vitals
   const v = s.vitals || {};
-  $("hr").textContent = v.heart_rate ?? "–";
-  $("spo2").textContent = v.spo2 ?? "–";
-  const src = $("src");
-  if (v.source === "ring") { src.className = "tag live"; src.textContent = "LIVE FROM RING"; }
-  else if (v.source === "simulated") { src.className = "tag simulated"; src.textContent = "SIMULATED"; }
-  else { src.className = "tag none"; src.textContent = "NO READINGS"; }
+  $("hr").textContent = v.heart_rate ?? "–"; $("spo2").textContent = v.spo2 ?? "–";
+  const live = v.source === "ring" || v.source === "live", sim = v.source === "simulated";
+  $("src").className = "tag " + (live ? "live" : sim ? "simulated" : "none");
+  $("src").textContent = live ? "LIVE FROM RING" : sim ? "SIMULATED" : "NO READINGS";
   $("age").textContent = v.ts ? `Updated ${Math.max(0, Math.round(Date.now() / 1000 - v.ts))} s ago` : "Waiting for the ring.";
-  // activity
   const a = s.activity || {};
   $("steps").textContent = (a.steps || 0).toLocaleString();
   $("active").textContent = Math.floor((a.active_s || 0) / 60) + " min";
   $("still").textContent = Math.floor((a.still_s || 0) / 60) + " min";
   $("falls").textContent = a.falls || 0;
-  // pending yes/no
   const p = s.pending_confirmation;
   $("pending").style.display = p ? "block" : "none";
   if (p) $("pending").textContent = "Waiting for a spoken yes: " + (p.question || p.goal);
-  // devices
   const d = s.devices || {};
   const label = { band: "Band", ring: "Ring", phone: "Phone", mic: "Mic", speaker: "Voice" };
   $("devices").innerHTML = Object.keys(label).filter(k => d[k]).map(k => {
@@ -188,14 +313,15 @@ function render(s) {
     const txt = k === "ring" && val === "sim" ? "SIMULATED" : k === "band" && val === "sim" ? "pretend" : val;
     return `<span class="dev ${cls}">${label[k]}: ${esc(txt)}</span>`;
   }).join("");
+  // grandpa strip
+  $("g-steps").textContent = (a.steps || 0).toLocaleString();
+  $("g-hr").textContent = v.heart_rate ?? "–";
+  $("g-sim").style.display = sim ? "inline" : "none";
+  $("g-band").textContent = "band: " + (d.band === "on" ? "connected" : d.band === "sim" ? "pretend" : (d.band || "–"));
 }
-
 async function poll() {
-  try {
-    const r = await fetch("/state"); const j = await r.json();
-    render(j.state); (j.events || []).forEach(addEvent);
-    $("offline").style.display = "none";
-  } catch (e) { $("offline").style.display = "block"; }
+  try { const j = await (await fetch("/state")).json(); render(j.state); (j.events || []).forEach(addEvent); $("offline").style.display = "none"; }
+  catch (e) { $("offline").style.display = "block"; }
 }
 function listen() {
   const es = new EventSource("/events");
@@ -203,8 +329,7 @@ function listen() {
   es.onerror = () => { es.close(); setTimeout(listen, 2000); };
 }
 async function act(name) { await fetch("/action/" + name, { method: "POST" }); }
-
-poll(); listen(); setInterval(poll, 2000);
+poll(); listen(); setInterval(poll, 2000); requestAnimationFrame(tick);
 </script>
 </body>
 </html>
