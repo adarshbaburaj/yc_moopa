@@ -1,0 +1,10 @@
+vexo-open-kit/
+.env
+__pycache__/
+.venv/
+tools/platform-tools/
+tools/scrcpy-*/
+tools/phone-harness/
+tools/pair_qr.png
+*.pyc
+.DS_Store
