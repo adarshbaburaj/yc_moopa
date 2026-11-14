@@ -183,6 +183,56 @@ def working(linger: float = 0.0):
             off()
 
 
+def _device_ok() -> bool:
+    try:
+        out = subprocess.run([ADB, "devices"], capture_output=True, text=True, timeout=8).stdout
+    except Exception:
+        return False
+    return any(l.strip().endswith("device") for l in out.splitlines()[1:])
+
+
+def _try_reconnect() -> None:
+    """Connect to the phone's Wireless debugging service if it is announcing itself (mDNS)."""
+    try:
+        out = subprocess.run([ADB, "mdns", "services"], capture_output=True, text=True, timeout=8).stdout
+        for addr in re.findall(r"_adb-tls-connect\._tcp\.?\s+([\d.]+:\d+)", out):
+            subprocess.run([ADB, "connect", addr], capture_output=True, text=True, timeout=8)
+    except Exception:
+        pass
+
+
+def keep_connected(on_back=None, every: float = 5.0) -> None:
+    """Background thread: notice when the phone drops off adb, keep trying, restore on return."""
+    if dry_run:
+        return
+
+    def loop():
+        was_ok = _device_ok()
+        while True:
+            time.sleep(every)
+            ok = _device_ok()
+            if not ok:
+                _try_reconnect()
+                ok = _device_ok()
+            if ok != was_ok:
+                state.update("devices.phone", "on" if ok else "off")
+                if ok:
+                    state.emit("system", "Phone reconnected")
+                    console.show("  📱 ✅ Phone reconnected")
+                    if on_back:
+                        try:
+                            on_back()
+                        except Exception as e:
+                            console.log(f"[phone] restore after reconnect failed: {e}")
+                else:
+                    state.emit("system", "Phone disconnected")
+                    console.show("  📱 ❌ Phone disconnected: on the phone turn Wireless debugging back on "
+                                 "(Settings > Developer options); keep it unlocked")
+                was_ok = ok
+
+    _threading.Thread(target=loop, daemon=True, name="phone-watch").start()
+
+
 def halo_off_now() -> None:
     """On quit: make sure nothing is left glowing on the phone."""
     if not dry_run:

@@ -84,8 +84,13 @@ async def main():
 
     if args.mic == "band" and args.band == "off":
         sys.exit("--mic band needs a band: use --band real or --band sim")
-    voice_phone = args.voice == "phone" and not args.no_phone and phone.check() and phone.start_phone_voice()
+    voice_phone = args.voice == "phone" and not args.no_phone
+    if voice_phone and phone.check():
+        phone.start_phone_voice()  # if the phone is missing now, keep_connected() does this when it returns
     agent = Agent(use_mac_mic=(args.mic == "mac"), voice_on_phone=bool(voice_phone))
+    if not args.no_phone:
+        # heal a dropped wireless-adb link mid-demo; bring the phone speaker back with it
+        phone.keep_connected(on_back=(lambda: phone.start_phone_voice()) if args.voice == "phone" else None)
     agent.navigator = phone.navigate
     falls = FallResponder(agent)
     agent.on_alert = falls.alert
