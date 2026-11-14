@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
+from moopa import console  # noqa: E402
 from moopa import state
 
 DASH = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
@@ -74,4 +75,4 @@ async def serve(port: int = 8765):
         cfg = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
         await uvicorn.Server(cfg).serve()
     except (SystemExit, Exception) as e:
-        print(f"[server] dashboard stopped: {e!r} (agent keeps running)")
+        console.log(f"[server] dashboard stopped: {e!r} (agent keeps running)")

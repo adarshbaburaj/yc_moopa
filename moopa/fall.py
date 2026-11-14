@@ -17,6 +17,7 @@ import threading
 import time
 import urllib.request
 
+from moopa import console  # noqa: E402
 from moopa import phone, state
 
 REPLY_S = 10.0       # after the question has been spoken

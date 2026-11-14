@@ -14,6 +14,7 @@ import os
 import sys
 import termios
 import threading
+import time
 import tty
 from pathlib import Path
 
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 sys.path.insert(0, str(ROOT))
 
-from moopa import phone, server, state  # noqa: E402
+from moopa import console, phone, server, state  # noqa: E402
 
 
 def parse():
@@ -37,6 +38,7 @@ def parse():
     ap.add_argument("--no-camera", action="store_true")
     ap.add_argument("--no-phone", action="store_true", help="print phone actions instead of doing them")
     ap.add_argument("--port", type=int, default=8765)
+    ap.add_argument("--verbose", action="store_true", help="show all internal logs")
     return ap.parse_args()
 
 
@@ -65,6 +67,8 @@ def keyboard(agent, extra: dict, stop: threading.Event):
 
 async def main():
     args = parse()
+    console.VERBOSE = args.verbose
+    console.quiet_libraries()
     need = ["DEEPGRAM_API_KEY"] + (["GOOGLE_CLOUD_PROJECT"] if os.getenv("LLM_PROVIDER", "openai") == "gemini"
                                    else ["OPENAI_API_KEY"])
     missing = [k for k in need if not os.getenv(k)]
@@ -72,7 +76,8 @@ async def main():
         sys.exit(f"Missing in .env: {', '.join(missing)}")
 
     phone.dry_run = args.no_phone
-    print("phone:", "dry-run" if args.no_phone else ("connected" if phone.check() else "NOT connected (adb devices is empty)"))
+    console.show("Starting Moopa...")
+    phone.check()
 
     from moopa.agent import Agent, llm_provider
     from moopa.fall import FallResponder
@@ -115,13 +120,49 @@ async def main():
     threading.Thread(target=keyboard, args=(agent, keys, stop), daemon=True).start()
     port = server.free_port(args.port)
     if port != args.port:
-        print(f"[server] port {args.port} is busy (an old run.py still open?) -> using {port}")
-    print(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic} | "
-          f"voice: {'phone speaker' if voice_phone else 'Mac'}")
-    print(f"Dashboard: http://127.0.0.1:{port}   |   SPACE = start/stop listening, d = double-tap, f = pretend fall, "
-          f"c = cancel alert, q = quit")
+        console.log(f"[server] port {args.port} is busy (an old run.py still open?) -> using {port}")
+    console.log(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic} | "
+                f"voice: {'phone speaker' if voice_phone else 'Mac'}")
 
-    await asyncio.gather(agent.run(), server.serve(port))
+    async def checklist():
+        """One line of ticks once everything is up; a cross + the fix for anything that isn't."""
+        brain = "Gemini" if llm_provider() == "gemini" else "OpenAI"
+        start = time.monotonic()
+        shown = None
+        while True:
+            d = state.get("devices")
+            items = [
+                ("Phone", d.get("phone") in ("on", "dry-run"), "unlock it; check adb devices"),
+                ("Mic" + (" (band)" if args.mic == "band" else ""), d.get("agent") == "ready",
+                 "check the Deepgram key / internet"),
+                (f"Brain ({brain})", d.get("agent") == "ready", "check the API key"),
+                ("Voice (phone)" if voice_phone else "Voice (Mac)",
+                 d.get("speaker") == "phone" if voice_phone else d.get("agent") == "ready",
+                 "is the Moopa Halo app installed? ./halo-app/build.sh install"),
+            ]
+            if args.band != "off":
+                items.append((f"Band {os.getenv('BAND_NUMBER', '?')}" + (" (pretend)" if args.band == "sim" else ""),
+                              d.get("band") in ("on", "sim") and bool(d.get("fall_sensor")),
+                              "double-tap the band (blinking blue), keep it close"))
+            ok = all(i[1] for i in items)
+            late = time.monotonic() - start > 25
+            if ok or late:
+                line = "   ".join(("✅ " if good else "❌ ") + name for name, good, _ in items)
+                if line != shown:
+                    shown = line
+                    console.show("\n  " + line)
+                    for name, good, fix in items:
+                        if not good:
+                            console.show(f"     ❌ {name}: {fix}")
+                    if ok:
+                        console.show("\n  👍  READY FOR ACTION — double-tap the band to talk"
+                                     if args.band != "off" else "\n  👍  READY FOR ACTION — press SPACE to talk")
+                        console.show(f"     (dashboard http://127.0.0.1:{port} · SPACE talk · f pretend fall · "
+                                     f"c reset · q quit)\n")
+                        return
+            await asyncio.sleep(0.5)
+
+    await asyncio.gather(agent.run(), server.serve(port), checklist())
 
 
 if __name__ == "__main__":

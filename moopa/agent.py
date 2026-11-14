@@ -47,6 +47,7 @@ from pipecat.transports.base_output import BaseOutputTransport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.workers.runner import WorkerRunner
 
+from moopa import console  # noqa: E402
 from moopa import phone, state
 
 AWAKE_SECS = 12  # window after an automatic wake (fall check)
@@ -92,7 +93,7 @@ class PhoneVoice:
                 self.server = await asyncio.start_server(self._client, "127.0.0.1", VOICE_PORT,
                                                          reuse_address=True)
             except OSError as e:
-                print(f"[voice] could not open the phone speaker port {VOICE_PORT} ({e}); using the Mac")
+                console.log(f"[voice] could not open the phone speaker port {VOICE_PORT} ({e}); using the Mac")
 
     async def _client(self, reader, writer):
         if self.writer:
@@ -238,7 +239,7 @@ class SDTransport(BaseTransport):
                 sd.query_devices(int(want) if want.isdigit() else want, kind=kind)
                 return want
             except Exception:
-                print(f"[audio] {var}={want!r} has no {kind} right now; using the system default "
+                console.log(f"[audio] {var}={want!r} has no {kind} right now; using the system default "
                       f"({sd.query_devices(kind=kind)['name']})")
                 return None
 
@@ -569,6 +570,10 @@ class Agent:
         self.worker = PipelineWorker(pipeline, idle_timeout_secs=None,
                                      params=PipelineParams(audio_in_sample_rate=16000,
                                                            audio_out_sample_rate=24000))
+        @self.worker.event_handler("on_pipeline_started")
+        async def _ready(worker, frame):
+            state.update("devices.agent", "ready")
+
         sleeper = asyncio.create_task(self._sleeper())
         state.update("devices.mic", "mac" if self._use_mac_mic else "band")
         try:

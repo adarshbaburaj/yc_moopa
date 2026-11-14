@@ -14,6 +14,7 @@ from pathlib import Path
 
 from collections import deque
 
+from moopa import console  # noqa: E402
 from moopa import state
 from moopa.motion import FallDetector, describe, fall_motion
 
@@ -87,7 +88,7 @@ class BandLink:
         try:
             self.band.set_led(colour, pattern=pattern, period=period)
         except Exception as e:  # not-connected while reconnecting, etc.: the demo goes on
-            print(f"[band] light {name}: {e}")
+            console.log(f"[band] light {name}: {e}")
 
     # ---- thread
     def start(self):
@@ -105,10 +106,10 @@ class BandLink:
     def _run(self):
         number = band_number()
         if number is None:
-            print("[band] BAND_NUMBER is not set in .env (the number on the band's bag). Running without the band.")
+            console.log("[band] BAND_NUMBER is not set in .env (the number on the band's bag). Running without the band.")
             state.update("devices.band", "off")
             return
-        print(f"[band] connecting to Vexo-HACK-{number:02d}{' (pretend band)' if self.sim else ''}... "
+        console.log(f"[band] connecting to Vexo-HACK-{number:02d}{' (pretend band)' if self.sim else ''}... "
               f"{'' if self.sim else 'double-tap the band (blinking blue = findable)'}")
         state.update("devices.band", "connecting")
         attempt = 0
@@ -118,15 +119,15 @@ class BandLink:
                 self.band = self._connect(number)
             except Exception as e:
                 msg = str(e) or type(e).__name__
-                print(f"[band] attempt {attempt} failed: {msg[:140]}")
+                console.log(f"[band] attempt {attempt} failed: {msg[:140]}")
                 if attempt == 1 or attempt % 5 == 0:
-                    print("[band] still trying. Double-tap the band now; close any dashboard tab "
+                    console.log("[band] still trying. Double-tap the band now; close any dashboard tab "
                           "or other program connected to it.")
                 time.sleep(2)
         b = self.band
         state.update("devices.band", "sim" if self.sim else "on")
         state.emit("system", f"Band connected: {b.name}{' (pretend)' if self.sim else ''}")
-        print(f"[band] CONNECTED: {b.name}. Double-tap it to talk.")
+        console.log(f"[band] CONNECTED: {b.name}. Double-tap it to talk.")
         put = lambda item: self.inbox.put_nowait(item) if not self.inbox.full() else None  # noqa: E731
         b.on("double-tap", lambda e: put(("double-tap", None)))
         b.on("free-fall", lambda e: put(("free-fall", None)))
@@ -140,22 +141,23 @@ class BandLink:
         try:  # default 0.8 g misses gentle taps on a worn band; lower = more sensitive (0.2..8)
             b.set_events(kinds=EVENT_KINDS, tap_threshold=tap_threshold())
         except Exception as e:
-            print(f"[band] could not set tap sensitivity: {e}")
+            console.log(f"[band] could not set tap sensitivity: {e}")
         for rate in (MOTION_HZ, 25):
             try:
                 b.set_motion(accel_range=8)  # the default 2 g range clips an impact
                 b.configure(motion=rate)
                 self._motion_ok = True
-                print(f"[band] accelerometer on: {rate}/s, 8 g range (fall rule runs on this laptop)")
+                state.update("devices.fall_sensor", f"{rate}/s")
+                console.log(f"[band] accelerometer on: {rate}/s, 8 g range (fall rule runs on this laptop)")
                 break
             except Exception as e:
-                print(f"[band] accelerometer at {rate}/s refused: {str(e)[:100]}")
+                console.log(f"[band] accelerometer at {rate}/s refused: {str(e)[:100]}")
         if not self._motion_ok:
-            print("[band] no accelerometer stream: using the band's free-fall event + stillness instead")
+            console.log("[band] no accelerometer stream: using the band's free-fall event + stillness instead")
         if self.use_mic:
             from vexo_open.audio import PcmDecoder
 
-            print("[band] preparing the audio decoder (a few seconds, once)...")
+            console.log("[band] preparing the audio decoder (a few seconds, once)...")
             self._decoder = PcmDecoder()
             state.update("devices.mic", "band")
         self.light("idle")
@@ -163,7 +165,7 @@ class BandLink:
             try:
                 self._tick()
             except Exception as e:
-                print(f"[band] loop error: {e}")
+                console.log(f"[band] loop error: {e}")
                 time.sleep(0.5)
 
     def _tick(self):
@@ -184,11 +186,11 @@ class BandLink:
             kind, data = self.inbox.get_nowait()
             if kind == "double-tap":
                 state.emit("band", "Double-tap")
-                print("[band] double-tap")
+                console.log("[band] double-tap")
                 if any(h() for h in list(self.double_tap_hooks)):
                     continue  # e.g. "I'm okay" during a fall check
                 if state.get("awake"):
-                    print("[band] stop listening")
+                    console.log("[band] stop listening")
                     self.agent.stop_listening()
                 else:
                     self._wake()
@@ -231,7 +233,7 @@ class BandLink:
 
     def _on_motion_fall(self, details: dict):
         text = describe(details)
-        print(f"[band] FALL: {text}")
+        console.log(f"[band] FALL: {text}")
         for h in list(self.fall_hooks):
             h("band", text)
 

@@ -10,6 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from moopa import console  # noqa: E402
 from moopa import state
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -89,7 +90,7 @@ def _log(text: str, **data) -> None:
 def adb(*args: str, timeout: float = 15) -> str:
     cmd = [ADB, "shell", *args] if args and args[0] != "--raw" else [ADB, *args[1:]]
     if dry_run:
-        print("[phone dry-run]", " ".join(cmd))
+        console.log("[phone dry-run]", " ".join(cmd))
         return ""
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if r.returncode != 0:
@@ -105,7 +106,7 @@ def check() -> bool:
     try:
         out = subprocess.run([ADB, "devices"], capture_output=True, text=True, timeout=10).stdout
     except Exception as e:
-        print(f"[phone] adb not usable: {e}")
+        console.log(f"[phone] adb not usable: {e}")
         state.update("devices.phone", "off")
         return False
     devs = [l for l in out.splitlines()[1:] if l.strip().endswith("device")]
@@ -140,7 +141,7 @@ def _halo_cmd(action: str) -> None:
     try:
         adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", action, timeout=5)
     except Exception as e:  # halo app not installed: the demo goes on without it
-        print(f"[halo] {action} failed: {str(e)[:80]}")
+        console.log(f"[halo] {action} failed: {str(e)[:80]}")
 
 
 @contextmanager
@@ -197,7 +198,7 @@ def start_phone_voice(port: int = 8770) -> bool:
         adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "voice")
         return True
     except Exception as e:
-        print(f"[voice] phone speaker not available ({str(e)[:100]}); using the Mac speakers")
+        console.log(f"[voice] phone speaker not available ({str(e)[:100]}); using the Mac speakers")
         return False
 
 
@@ -277,7 +278,7 @@ def _read_screen():
                           "id": (n.get("id") or "").split("/")[-1], "clickable": bool(n.get("clickable")),
                           "x": n["x"], "y": n["y"]})
     except Exception as e:
-        print(f"[nav] tree unavailable: {e}")
+        console.log(f"[nav] tree unavailable: {e}")
     labelled = [n for n in nodes if n["text"] or n["desc"]]
     png = None
     if len(labelled) < 4:
@@ -286,7 +287,7 @@ def _read_screen():
             png = Path(p).read_bytes()
             Path(p).unlink(missing_ok=True)  # frames are never kept
         except Exception as e:
-            print(f"[nav] screenshot failed: {e}")
+            console.log(f"[nav] screenshot failed: {e}")
     return nodes[:120], png
 
 
@@ -492,7 +493,7 @@ def _video_call(number: str, who: str) -> str:
                         break
                 return f"Video calling {who} on WhatsApp."
     except Exception as e:
-        print(f"[phone] video fast path failed: {e}")
+        console.log(f"[phone] video fast path failed: {e}")
     return run_task(f"In the open WhatsApp chat, start a video call with {who} (the camera icon at the top).",
                     max_steps=6)
 
