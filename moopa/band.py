@@ -161,8 +161,12 @@ class BandLink:
                 state.emit("band", "Double-tap")
                 print("[band] double-tap")
                 if any(h() for h in list(self.double_tap_hooks)):
-                    continue
-                self._wake()
+                    continue  # e.g. "I'm okay" during a fall check
+                if state.get("awake"):
+                    print("[band] stop listening")
+                    self.agent.stop_listening()
+                else:
+                    self._wake()
             elif kind == "free-fall":
                 state.emit("band", "Free-fall detected, checking for stillness")
                 self._fall_at = now
@@ -205,7 +209,7 @@ class BandLink:
         self._wake_ts = time.time()
         if not self.use_mic:
             self.light("listen")
-        self.agent.wake()
+        self.agent.wake(hold=True)  # stays open until the next double-tap
 
     def _show_result(self):
         since = getattr(self, "_wake_ts", 0)

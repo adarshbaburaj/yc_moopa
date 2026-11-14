@@ -49,8 +49,9 @@ from pipecat.workers.runner import WorkerRunner
 
 from moopa import phone, state
 
-AWAKE_SECS = 12  # window after wake / after the agent stops talking
+AWAKE_SECS = 12  # window after an automatic wake (fall check)
 FOLLOW_UP_SECS = 10
+MAX_LISTEN_S = float(os.getenv("MOOPA_MAX_LISTEN_S", "120"))  # double-tap session: safety cap
 
 
 # ---------------------------------------------------------------- audio transport
@@ -60,6 +61,7 @@ class MicGate:
     def __init__(self):
         self.awake_until = 0.0
         self.bot_speaking = False
+        self.held = False  # opened by a double-tap: stays open until the next one
 
     @property
     def open(self) -> bool:
@@ -199,7 +201,7 @@ class BotSpeechWatch(FrameProcessor):
         elif isinstance(frame, BotStoppedSpeakingFrame):
             self._gate.bot_speaking = False
             if time.monotonic() < self._gate.awake_until + 2:  # was a conversation: allow a follow-up
-                self._gate.awake_until = time.monotonic() + FOLLOW_UP_SECS
+                self._gate.awake_until = max(self._gate.awake_until, time.monotonic() + FOLLOW_UP_SECS)
         await self.push_frame(frame, direction)
 
 
@@ -375,18 +377,39 @@ class Agent:
         await p.result_callback("Call ended.")
 
     # ---- control (thread-safe; callable from band/keyboard threads)
-    def wake(self, greet: str | None = "I'm listening.", remember: bool = False) -> None:
+    def wake(self, greet: str | None = "I'm listening.", remember: bool = False, hold: bool = False) -> None:
+        """hold=True: stay listening until stop_listening() (double-tap again) or MAX_LISTEN_S."""
         if not self.loop:
             return
-        self.loop.call_soon_threadsafe(self._wake, greet, remember)
+        self.loop.call_soon_threadsafe(self._wake, greet, remember, hold)
 
-    def _wake(self, greet, remember=False):
-        self.gate.awake_until = time.monotonic() + AWAKE_SECS
+    def _wake(self, greet, remember=False, hold=False):
+        self.gate.held = self.gate.held or hold
+        span = MAX_LISTEN_S if hold else AWAKE_SECS
+        self.gate.awake_until = max(self.gate.awake_until, time.monotonic() + span)
         if not state.get("awake"):
             state.update("awake", True)
-            state.emit("system", "Listening")
+            state.emit("system", "Listening (double-tap again to stop)" if hold else "Listening")
         if greet:
             self.say(greet, remember=remember)
+
+    def stop_listening(self, why: str = "Stopped listening (double-tap)") -> None:
+        if self.loop:
+            self.loop.call_soon_threadsafe(self._stop, why)
+
+    def _stop(self, why):
+        self.gate.held = False
+        self.gate.awake_until = 0.0
+        if state.get("awake"):
+            state.update("awake", False)
+            state.emit("system", why)
+
+    def toggle(self) -> None:
+        """Double-tap / Space: start listening, or stop if already listening."""
+        if state.get("awake"):
+            self.stop_listening()
+        else:
+            self.wake(hold=True)
 
     def say(self, text: str, remember: bool = False) -> None:
         if self.loop and self.worker:
@@ -417,7 +440,9 @@ class Agent:
             if state.get("awake") and not self.gate.open and not self.gate.bot_speaking \
                     and time.monotonic() > self.gate.awake_until:
                 state.update("awake", False)
-                state.emit("system", "Sleeping (mic closed)")
+                state.emit("system", f"Stopped listening after {int(MAX_LISTEN_S)} s (safety cap)"
+                           if self.gate.held else "Sleeping (mic closed)")
+                self.gate.held = False
 
     async def run(self):
         self.loop = asyncio.get_running_loop()

@@ -4,7 +4,7 @@
   python run.py --no-phone --no-camera print phone actions instead of doing them
   python run.py --band real --mic band real band (number from BAND_NUMBER in .env)
 
-Keys in the terminal: SPACE = wake the agent (like a band double-tap),
+Keys in the terminal: SPACE = start/stop listening (like a band double-tap),
 f = pretend fall, c = cancel alert, q = quit.
 """
 
@@ -49,8 +49,8 @@ def keyboard(agent, extra: dict, stop: threading.Event):
         while not stop.is_set():
             ch = sys.stdin.read(1)
             if ch == " ":
-                state.emit("system", "Wake (space bar)")
-                agent.wake()
+                state.emit("system", "Space bar")
+                agent.toggle()
             elif ch in extra:
                 extra[ch]()
             elif ch == "q":
@@ -102,9 +102,9 @@ async def main():
         if band and band.band and band.sim:
             band.sim_double_tap()
         elif not falls.on_double_tap():
-            agent.wake()
+            agent.toggle()
 
-    server.actions.update({"wake": agent.wake, "fall": pretend_fall, "cancel": falls.reset,
+    server.actions.update({"wake": lambda: agent.wake(hold=True), "stop": agent.stop_listening, "fall": pretend_fall, "cancel": falls.reset,
                            "double_tap": double_tap})
     keys = {"d": double_tap, "f": pretend_fall, "c": falls.reset}
 
@@ -114,7 +114,7 @@ async def main():
     if port != args.port:
         print(f"[server] port {args.port} is busy (an old run.py still open?) -> using {port}")
     print(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic}")
-    print(f"Dashboard: http://127.0.0.1:{port}   |   SPACE = wake, d = double-tap, f = pretend fall, "
+    print(f"Dashboard: http://127.0.0.1:{port}   |   SPACE = start/stop listening, d = double-tap, f = pretend fall, "
           f"c = cancel alert, q = quit")
 
     await asyncio.gather(agent.run(), server.serve(port))
