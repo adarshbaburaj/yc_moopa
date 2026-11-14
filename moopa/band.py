@@ -12,13 +12,17 @@ import threading
 import time
 from pathlib import Path
 
+from collections import deque
+
 from moopa import state
+from moopa.motion import FallDetector, describe, fall_motion
 
 KIT = Path(__file__).resolve().parent.parent / "vexo-open-kit" / "python"
 sys.path.insert(0, str(KIT))
 
-LANDING_S = 1.0   # movement in the first second after free-fall is the landing
-STILL_S = 5.0     # still this long after landing = a fall
+MOTION_HZ = 50    # raw accelerometer for the fall rule (moopa/motion.py), processed on this laptop
+LANDING_S = 1.0   # fallback rule (no motion stream): movement in the first second is the landing
+STILL_S = 5.0     # fallback rule: still this long after landing = a fall
 RESULT_LIGHT_S = 6.0
 LIGHTS = {"idle": ("#003300", "breathe", 4000), "listen": ("#ffffff", "flash", 250),
           "done": ("#00ff00", "solid", 1000), "waiting": ("#ff8800", "blink", 600),
@@ -53,6 +57,9 @@ class BandLink:
         self.fall_hooks = []        # callables(source)
         self._mic_on = False
         self._decoder = None
+        self.motion_q: deque = deque(maxlen=4000)
+        self._motion_ok = False
+        self.detector = FallDetector(self._on_motion_fall, lambda text: state.emit("band", text))
         self._fall_at = None
         self._first_steps = None
         self._last_activity = None
@@ -66,8 +73,11 @@ class BandLink:
 
     def sim_fall(self):
         if self.band and self.sim:
-            self.band.transport.tap("free-fall")
-            self.band.transport.set_activity("still")
+            sim = self.band.transport
+            if self._motion_ok:
+                sim.play_motion(fall_motion(MOTION_HZ))  # free-fall, impact, lying still
+            sim.tap("free-fall")
+            sim.set_activity("still")
 
     def light(self, name: str):
         """Only while the mic is off (the band refuses LED commands otherwise)."""
@@ -125,11 +135,23 @@ class BandLink:
         b.on("reconnecting", lambda e: put(("link", "lost")))
         b.on("reconnected", lambda e: put(("link", "back")))
         b.on("audio", lambda a: self.audio.put_nowait(a) if not self.audio.full() else None)
+        b.on("motion", lambda m: self.motion_q.append((m.t / 1000.0, m.ax, m.ay, m.az)))
         b.configure(events=True, activity=True, battery=True)
         try:  # default 0.8 g misses gentle taps on a worn band; lower = more sensitive (0.2..8)
             b.set_events(kinds=EVENT_KINDS, tap_threshold=tap_threshold())
         except Exception as e:
             print(f"[band] could not set tap sensitivity: {e}")
+        for rate in (MOTION_HZ, 25):
+            try:
+                b.set_motion(accel_range=8)  # the default 2 g range clips an impact
+                b.configure(motion=rate)
+                self._motion_ok = True
+                print(f"[band] accelerometer on: {rate}/s, 8 g range (fall rule runs on this laptop)")
+                break
+            except Exception as e:
+                print(f"[band] accelerometer at {rate}/s refused: {str(e)[:100]}")
+        if not self._motion_ok:
+            print("[band] no accelerometer stream: using the band's free-fall event + stillness instead")
         if self.use_mic:
             from vexo_open.audio import PcmDecoder
 
@@ -147,6 +169,9 @@ class BandLink:
     def _tick(self):
         time.sleep(0.03)
         now = time.time()
+        # 0. accelerometer samples -> fall rule
+        while self.motion_q:
+            self.detector.feed(*self.motion_q.popleft())
         # 1. microphone packets -> agent (decoded here, never in a handler)
         while not self.audio.empty():
             pkt = self.audio.get_nowait()
@@ -167,8 +192,8 @@ class BandLink:
                     self.agent.stop_listening()
                 else:
                     self._wake()
-            elif kind == "free-fall":
-                state.emit("band", "Free-fall detected, checking for stillness")
+            elif kind == "free-fall" and not self._motion_ok:  # fallback rule only
+                state.emit("band", "Free-fall event, checking for stillness")
                 self._fall_at = now
             elif kind == "moved":
                 if self._fall_at and now - self._fall_at > LANDING_S:
@@ -185,7 +210,7 @@ class BandLink:
         if self._fall_at and now - self._fall_at >= LANDING_S + STILL_S:
             self._fall_at = None
             for h in list(self.fall_hooks):
-                h("band")
+                h("band", "Band: free-fall, then still")
         # 4. mic follows the agent's awake window (band mic mode only)
         awake = state.get("awake")
         if self.use_mic and awake and not self._mic_on:
@@ -203,6 +228,12 @@ class BandLink:
             self._result_until = 0.0
             self._wake_event_idx = 0
             self.light("alert" if state.get("status") == "ALERT" else "idle")
+
+    def _on_motion_fall(self, details: dict):
+        text = describe(details)
+        print(f"[band] FALL: {text}")
+        for h in list(self.fall_hooks):
+            h("band", text)
 
     def _wake(self):
         self._wake_event_idx = len(state.snapshot()["events"]) or 1
