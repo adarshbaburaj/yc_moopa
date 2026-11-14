@@ -20,16 +20,16 @@
     #ring-pulse { position: absolute; left: 0; top: 940px; width: 1920px; height: 140px; }
   </style>
   <div id="root" data-composition-id="ring" data-width="1920" data-height="1080">
-    <div id="ring-time" class="clip" data-start="0" data-duration="2" data-track-index="1"><span class="w">4:05 </span><span class="w">PM</span></div>
-    <div id="ring-ask" class="clip" data-start="0.35" data-duration="1.65" data-track-index="2"><span class="w">“How </span><span class="w">am </span><span class="w">I </span><span class="w">doing </span><span class="w">today?”</span></div>
-    <div id="ring-photo" class="clip" data-start="2" data-duration="6.5" data-track-index="3">
+    <div id="ring-time" class="clip" data-start="0.00" data-duration="1.30" data-track-index="1"><span class="w">4:05 </span><span class="w">PM</span></div>
+    <div id="ring-ask" class="clip" data-start="0.23" data-duration="1.07" data-track-index="2"><span class="w">“How </span><span class="w">am </span><span class="w">I </span><span class="w">doing </span><span class="w">today?”</span></div>
+    <div id="ring-photo" class="clip" data-start="1.30" data-duration="4.23" data-track-index="3">
       <div style="position:absolute;inset:0;background-image:url(assets/stills/ring-hand.png);background-size:1700px auto;background-position:-766px -600px"></div>
     </div>
-    <div id="ring-title" class="clip" data-start="2.3" data-duration="6.2" data-track-index="4"><span class="w">The </span><span class="w">ring</span><br /><span class="w acc">feels.</span></div>
-    <div id="ring-what" class="clip" data-start="3" data-duration="5.5" data-track-index="5">COLMI R02 ring: heart rate and blood oxygen, read from the finger.</div>
-    <div id="ring-hr" class="clip" data-start="3.6" data-duration="4.9" data-track-index="6"><div class="r"><span class="n" id="ring-n">72</span><span class="u">bpm heart rate</span></div><div class="r"><span class="n" id="ring-o">97</span><span class="u">% blood oxygen</span></div></div>
-    <div id="ring-tag" class="clip" data-start="3.9" data-duration="4.6" data-track-index="7">SIMULATED READING · NOT A MEDICAL DEVICE</div>
-    <svg id="ring-pulse" class="clip" data-start="5.2" data-duration="3.3" data-track-index="8" viewBox="0 0 1920 140" data-layout-allow-overflow>
+    <div id="ring-title" class="clip" data-start="1.49" data-duration="4.03" data-track-index="4"><span class="w">The </span><span class="w">ring</span><br /><span class="w acc">feels.</span></div>
+    <div id="ring-what" class="clip" data-start="1.95" data-duration="3.58" data-track-index="5">COLMI R02 ring: heart rate and blood oxygen, read from the finger.</div>
+    <div id="ring-hr" class="clip" data-start="2.34" data-duration="3.19" data-track-index="6"><div class="r"><span class="n" id="ring-n">72</span><span class="u">bpm heart rate</span></div><div class="r"><span class="n" id="ring-o">97</span><span class="u">% blood oxygen</span></div></div>
+    <div id="ring-tag" class="clip" data-start="2.54" data-duration="2.99" data-track-index="7">SIMULATED READING · NOT A MEDICAL DEVICE</div>
+    <svg id="ring-pulse" class="clip" data-start="3.38" data-duration="2.15" data-track-index="8" viewBox="0 0 1920 140" data-layout-allow-overflow>
       <path id="ring-path" fill="none" stroke="#1d1b18" stroke-width="5" stroke-linecap="round"
         d="M0,90 C60,90 80,90 110,70 C130,40 150,40 170,80 C185,100 200,92 230,90 C290,90 310,90 340,70 C360,40 380,40 400,80 C415,100 430,92 460,90 C520,90 540,90 570,70 C590,40 610,40 630,80 C645,100 660,92 690,90 C750,90 770,90 800,70 C820,40 840,40 860,80 C875,100 890,92 920,90 C980,90 1000,90 1030,70 C1050,48 1070,48 1090,82 C1105,96 1120,91 1150,90 L1920,90" />
     </svg>
@@ -37,28 +37,28 @@
   <script>
     const tl = gsap.timeline({ paused: true });
     const inWords = (id, t, gap = 0.067) => document.querySelectorAll("#" + id + " .w").forEach((w, i) =>
-      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, t + i * gap));
-    const outBlur = (sel, t) => tl.to(sel, { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, t);
+      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.08, ease: "power2.out" }, t + i * gap));
+    const outBlur = (sel, t) => tl.to(sel, { opacity: 0, filter: "blur(8px)", duration: 0.12, ease: "power3.in" }, t);
 
-    inWords("ring-time", 0.1, 0.1);
-    inWords("ring-ask", 0.4, 0.09);
-    outBlur("#ring-time .w, #ring-ask .w", 1.8);
+    inWords("ring-time", 0.07, 0.1);
+    inWords("ring-ask", 0.26, 0.09);
+    outBlur("#ring-time .w, #ring-ask .w", 1.17);
     // the ring springs up
-    tl.fromTo("#ring-photo", { scale: 0.6, y: 120, opacity: 0 }, { scale: 1, y: 0, duration: 0.7, ease: "back.out(1.4)" }, 2.0);
-    tl.fromTo("#ring-photo", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power2.out" }, 2.0);
-    inWords("ring-title", 2.35, 0.09);
-    tl.fromTo("#ring-what", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 3.05);
+    tl.fromTo("#ring-photo", { scale: 0.6, y: 120, opacity: 0 }, { scale: 1, y: 0, duration: 0.45, ease: "back.out(1.4)" }, 1.30);
+    tl.fromTo("#ring-photo", { opacity: 0 }, { opacity: 1, duration: 0.13, ease: "power2.out" }, 1.30);
+    inWords("ring-title", 1.53, 0.09);
+    tl.fromTo("#ring-what", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, 1.98);
     // numbers count up to the reading
     const hr = { v: 0 }, ox = { v: 0 };
-    tl.fromTo(hr, { v: 40 }, { v: 72, duration: 0.8, ease: "expo.out", onUpdate: () => (document.getElementById("ring-n").textContent = Math.round(hr.v)) }, 3.6);
-    tl.fromTo(ox, { v: 80 }, { v: 97, duration: 0.8, ease: "expo.out", onUpdate: () => (document.getElementById("ring-o").textContent = Math.round(ox.v)) }, 3.75);
-    tl.fromTo("#ring-hr", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 3.6);
-    tl.fromTo("#ring-tag", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 3.95);
+    tl.fromTo(hr, { v: 40 }, { v: 72, duration: 0.52, ease: "expo.out", onUpdate: () => (document.getElementById("ring-n").textContent = Math.round(hr.v)) }, 2.34);
+    tl.fromTo(ox, { v: 80 }, { v: 97, duration: 0.52, ease: "expo.out", onUpdate: () => (document.getElementById("ring-o").textContent = Math.round(ox.v)) }, 2.44);
+    tl.fromTo("#ring-hr", { opacity: 0 }, { opacity: 1, duration: 0.13 }, 2.34);
+    tl.fromTo("#ring-tag", { opacity: 0 }, { opacity: 1, duration: 0.13 }, 2.57);
     // the pulse draws across the floor, then flattens into the next scene's trace
     const len = 2000;
-    tl.fromTo("#ring-path", { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 3.0, ease: "none" }, 5.25);
-    outBlur("#ring-title .w, #ring-what, #ring-hr, #ring-tag", 8.1);
-    tl.to("#ring-photo", { opacity: 0, scale: 0.94, filter: "blur(8px)", duration: 0.25, ease: "power3.in" }, 8.05);
+    tl.fromTo("#ring-path", { strokeDasharray: len, strokeDashoffset: len }, { strokeDashoffset: 0, duration: 1.95, ease: "none" }, 3.41);
+    outBlur("#ring-title .w, #ring-what, #ring-hr, #ring-tag", 5.26);
+    tl.to("#ring-photo", { opacity: 0, scale: 0.94, filter: "blur(8px)", duration: 0.16, ease: "power3.in" }, 5.23);
     window.__timelines["ring"] = tl;
   </script>
 </template>

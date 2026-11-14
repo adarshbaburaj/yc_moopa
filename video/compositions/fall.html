@@ -22,9 +22,9 @@
     #fall-red .ph { position: absolute; left: 160px; top: 690px; width: 1600px; font-weight: 700; font-size: 32px; opacity: 0.8; }
   </style>
   <div id="root" data-composition-id="fall" data-width="1920" data-height="1080">
-    <div id="fall-time" class="clip" data-start="0" data-duration="1.5" data-track-index="1"><span class="w">7:30 </span><span class="w">PM</span></div>
-    <div id="fall-title" class="clip" data-start="1.45" data-duration="4.25" data-track-index="2"><span class="w">The </span><span class="w">band </span><span class="w">feels </span><span class="w">a </span><span class="w acc">fall.</span></div>
-    <svg id="fall-trace" class="clip" data-start="0" data-duration="5.7" data-track-index="3" viewBox="0 0 1600 520" data-layout-allow-overflow>
+    <div id="fall-time" class="clip" data-start="0.00" data-duration="0.83" data-track-index="1"><span class="w">7:30 </span><span class="w">PM</span></div>
+    <div id="fall-title" class="clip" data-start="0.80" data-duration="2.34" data-track-index="2"><span class="w">The </span><span class="w">band </span><span class="w">feels </span><span class="w">a </span><span class="w acc">fall.</span></div>
+    <svg id="fall-trace" class="clip" data-start="0.00" data-duration="3.14" data-track-index="3" viewBox="0 0 1600 520" data-layout-allow-overflow>
       <!-- y: 1 g = 330, 140 px per g (0 g = 470). Thresholds are the real ones in moopa/motion.py -->
       <line id="fall-ff" x1="0" x2="1600" y1="414" y2="414" stroke="#6d665c" stroke-width="2" stroke-dasharray="10 12" />
       <text id="fall-ff-t" class="q" x="1600" y="454" text-anchor="end">free-fall: under 0.4 g</text>
@@ -35,21 +35,21 @@
            L520,428 L560,432 L585,70 L610,372 L640,316 L670,338 L700,328 L740,331 L1600,330" />
       <text id="fall-l1" x="470" y="500">free-fall</text>
       <text id="fall-l2" x="610" y="60">impact</text>
-      <text id="fall-l3" x="1000" y="300">then still for 4 seconds</text>
+      <text id="fall-l3" x="1000" y="300">then still for 3 seconds</text>
     </svg>
 
-    <div id="fall-clip" class="clip" data-start="5.7" data-duration="2.6" data-track-index="4">
+    <div id="fall-clip" class="clip" data-start="3.14" data-duration="1.43" data-track-index="4">
       <div class="ph">PLACEHOLDER · clips/04-fall.mp4<br />a safe, staged fall onto a sofa or mat</div>
     </div>
-    <div id="fall-ask" class="clip cap" data-start="5.9" data-duration="2.35" data-track-index="5"><span class="who">Moopa</span><span class="w">“Are </span><span class="w">you </span><span class="w">okay? </span><span class="w">Are </span><span class="w">you </span><span class="w">all </span><span class="w">right?”</span></div>
+    <div id="fall-ask" class="clip cap" data-start="3.25" data-duration="1.29" data-track-index="5"><span class="who">Moopa</span><span class="w">“Are </span><span class="w">you </span><span class="w">okay? </span><span class="w">Are </span><span class="w">you </span><span class="w">all </span><span class="w">right?”</span></div>
 
-    <div id="fall-count" class="clip" data-start="8.3" data-duration="2.6" data-track-index="6">
+    <div id="fall-count" class="clip" data-start="4.57" data-duration="1.43" data-track-index="6">
       <div class="num">10</div><div class="num">9</div><div class="num">8</div><div class="num">7</div><div class="num">6</div><div class="num">5</div>
       <div class="num">4</div><div class="num">3</div><div class="num">2</div><div class="num">1</div><div class="num">0</div>
       <div class="lbl">No answer for 10 seconds.</div>
     </div>
 
-    <div id="fall-red" class="clip" data-start="10.9" data-duration="3.1" data-track-index="7">
+    <div id="fall-red" class="clip" data-start="6.00" data-duration="1.71" data-track-index="7">
       <div class="big"><span class="w">Moopa </span><span class="w">calls </span><span class="w">family.</span></div>
       <div class="sub">It video-calls Grandson in NYC.</div>
       <div class="ph">PLACEHOLDER · clips/04-dashboard.mov (the family page during the fall)</div>
@@ -58,34 +58,34 @@
   <script>
     const tl = gsap.timeline({ paused: true });
     const inWords = (sel, t, gap = 0.067) => document.querySelectorAll(sel).forEach((w, i) =>
-      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, t + i * gap));
-    const outBlur = (sel, t) => tl.to(sel, { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power3.in" }, t);
+      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.07, ease: "power2.out" }, t + i * gap));
+    const outBlur = (sel, t) => tl.to(sel, { opacity: 0, filter: "blur(8px)", duration: 0.10, ease: "power3.in" }, t);
 
-    inWords("#fall-time .w", 0.1, 0.1); outBlur("#fall-time .w", 1.3);
-    inWords("#fall-title .w", 1.5, 0.08);
+    inWords("#fall-time .w", 0.06, 0.1); outBlur("#fall-time .w", 0.72);
+    inWords("#fall-title .w", 0.83, 0.08);
     // thresholds, then the trace draws: walking, free-fall, impact, still
-    tl.fromTo("#fall-ff, #fall-im, #fall-ff-t, #fall-im-t", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2);
-    tl.fromTo("#fall-path", { strokeDasharray: 2600, strokeDashoffset: 2600 }, { strokeDashoffset: 1700, duration: 1.4, ease: "none" }, 0.2);
-    tl.to("#fall-path", { strokeDashoffset: 1050, duration: 0.5, ease: "power2.in" }, 1.6);   // the drop and the spike, fast
-    tl.to("#fall-path", { strokeDashoffset: 0, duration: 2.2, ease: "none" }, 2.1);           // stillness
-    tl.fromTo("#fall-l1", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1.75);
-    tl.fromTo("#fall-l2", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1.95);
-    tl.fromTo("#fall-l3", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 3.0);
-    outBlur("#fall-title .w, #fall-trace", 5.45);
+    tl.fromTo("#fall-ff, #fall-im, #fall-ff-t, #fall-im-t", { opacity: 0 }, { opacity: 1, duration: 0.17 }, 0.11);
+    tl.fromTo("#fall-path", { strokeDasharray: 2600, strokeDashoffset: 2600 }, { strokeDashoffset: 1700, duration: 0.77, ease: "none" }, 0.11);
+    tl.to("#fall-path", { strokeDashoffset: 1050, duration: 0.28, ease: "power2.in" }, 0.88);   // the drop and the spike, fast
+    tl.to("#fall-path", { strokeDashoffset: 0, duration: 1.21, ease: "none" }, 1.16);           // stillness
+    tl.fromTo("#fall-l1", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 0.96);
+    tl.fromTo("#fall-l2", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 1.07);
+    tl.fromTo("#fall-l3", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 1.65);
+    outBlur("#fall-title .w, #fall-trace", 3.00);
     // "Are you okay?" (the real line in moopa/fall.py)
-    tl.fromTo("#fall-ask .who", { opacity: 0 }, { opacity: 0.85, duration: 0.2 }, 5.9);
-    inWords("#fall-ask .w", 5.95, 0.11);
-    outBlur("#fall-ask .w, #fall-ask .who", 8.05);
+    tl.fromTo("#fall-ask .who", { opacity: 0 }, { opacity: 0.85, duration: 0.11 }, 3.25);
+    inWords("#fall-ask .w", 3.27, 0.11);
+    outBlur("#fall-ask .w, #fall-ask .who", 4.43);
     // countdown, one numeral at a time
     const nums = document.querySelectorAll("#fall-count .num");
-    nums.forEach((n, i) => { tl.set(n, { opacity: 1 }, 8.3 + i * 0.22); if (i < nums.length - 1) tl.set(n, { opacity: 0 }, 8.3 + (i + 1) * 0.22); });
-    tl.fromTo("#fall-count .lbl", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 8.5);
+    nums.forEach((n, i) => { tl.set(n, { opacity: 1 }, 4.57 + i * 0.13); if (i < nums.length - 1) tl.set(n, { opacity: 0 }, 4.57 + (i + 1) * 0.13); });
+    tl.fromTo("#fall-count .lbl", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 4.67);
     // colour flood to alert red
-    tl.fromTo("#fall-red", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.4, ease: "power2.inOut" }, 10.9);
-    inWords("#fall-red .big .w", 11.15, 0.09);
-    tl.fromTo("#fall-red .sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 11.6);
-    tl.fromTo("#fall-red .ph", { opacity: 0 }, { opacity: 0.8, duration: 0.2 }, 11.9);
-    outBlur("#fall-red .big .w, #fall-red .sub, #fall-red .ph", 13.75);
+    tl.fromTo("#fall-red", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.22, ease: "power2.inOut" }, 6.00);
+    inWords("#fall-red .big .w", 6.13, 0.09);
+    tl.fromTo("#fall-red .sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.11 }, 6.38);
+    tl.fromTo("#fall-red .ph", { opacity: 0 }, { opacity: 0.8, duration: 0.11 }, 6.54);
+    outBlur("#fall-red .big .w, #fall-red .sub, #fall-red .ph", 7.56);
     window.__timelines["fall"] = tl;
   </script>
 </template>
