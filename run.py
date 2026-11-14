@@ -74,6 +74,7 @@ async def main():
 
     agent = Agent(use_mac_mic=(args.mic == "mac"))
     agent.navigator = phone.navigate
+    server.actions["wake"] = agent.wake
     keys: dict = {}
 
     stop = threading.Event()

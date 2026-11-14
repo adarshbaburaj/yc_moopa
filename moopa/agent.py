@@ -159,8 +159,20 @@ class SDOutput(BaseOutputTransport):
 class SDTransport(BaseTransport):
     def __init__(self, params: TransportParams, gate: MicGate, use_mac_mic=True):
         super().__init__()
-        ind = os.getenv("MOOPA_IN_DEVICE") or None
-        outd = os.getenv("MOOPA_OUT_DEVICE") or None
+        def pick(var, kind):
+            want = os.getenv(var) or None
+            if want is None:
+                return None
+            try:
+                sd.query_devices(int(want) if want.isdigit() else want, kind=kind)
+                return want
+            except Exception:
+                print(f"[audio] {var}={want!r} has no {kind} right now; using the system default "
+                      f"({sd.query_devices(kind=kind)['name']})")
+                return None
+
+        ind = pick("MOOPA_IN_DEVICE", "input")
+        outd = pick("MOOPA_OUT_DEVICE", "output")
         self._in = SDInput(params, gate, device=int(ind) if ind and ind.isdigit() else ind,
                            use_mac_mic=use_mac_mic)
         self._out = SDOutput(params, device=int(outd) if outd and outd.isdigit() else outd)
@@ -288,6 +300,9 @@ class Agent:
             await p.result_callback("I don't have that person in the contacts.")
             return
         who, num = hit
+        if os.getenv("CALL_VIA", "whatsapp") == "whatsapp" and self.navigator:
+            await p.result_callback(await self.navigator(f"WhatsApp video call {who}", video_call_number=num))
+            return
         try:
             await asyncio.to_thread(phone.call_number, num, who)
             await p.result_callback(f"Calling {who} now.")
