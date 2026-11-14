@@ -26,6 +26,16 @@ LIGHTS = {"idle": ("#003300", "breathe", 4000), "listen": ("#ffffff", "flash", 2
           "alert": ("#ff0000", "flash", 300)}
 
 
+EVENT_KINDS = ["tap", "double-tap", "free-fall", "tilt", "motion"]
+
+
+def tap_threshold() -> float:
+    try:
+        return min(8.0, max(0.2, float(os.getenv("BAND_TAP_THRESHOLD", "0.5"))))
+    except ValueError:
+        return 0.5
+
+
 def band_number() -> int | None:
     raw = os.getenv("BAND_NUMBER", "").strip()
     return int(raw) if raw.isdigit() and 1 <= int(raw) <= 999 else None
@@ -116,6 +126,10 @@ class BandLink:
         b.on("reconnected", lambda e: put(("link", "back")))
         b.on("audio", lambda a: self.audio.put_nowait(a) if not self.audio.full() else None)
         b.configure(events=True, activity=True, battery=True)
+        try:  # default 0.8 g misses gentle taps on a worn band; lower = more sensitive (0.2..8)
+            b.set_events(kinds=EVENT_KINDS, tap_threshold=tap_threshold())
+        except Exception as e:
+            print(f"[band] could not set tap sensitivity: {e}")
         if self.use_mic:
             from vexo_open.audio import PcmDecoder
 
