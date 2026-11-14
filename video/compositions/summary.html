@@ -1,0 +1,27 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #f4f1ec; font-family: "Inter", sans-serif; color: #1d1b18; }
+    #root .w { display: inline-block; white-space: pre; }
+    #sm-head { position: absolute; left: 240px; top: 150px; font-weight: 700; font-size: 44px; color: #6d665c; }
+    .sm { position: absolute; left: 240px; font-weight: 900; font-size: 92px; letter-spacing: -0.035em; line-height: 1; }
+    #sm-1 { top: 260px; } #sm-2 { top: 420px; } #sm-3 { top: 580px; } #sm-4 { top: 740px; }
+    .sm .in { display: inline-block; }
+    .sm b { color: #7c4dff; font-weight: 900; }
+  </style>
+  <div id="root" data-composition-id="summary" data-width="1920" data-height="1080">
+    <div id="sm-head" class="clip" data-start="0" data-duration="6" data-track-index="1">With one double-tap, Moopa</div>
+    <div id="sm-1" class="sm clip" data-start="0.3" data-duration="5.7" data-track-index="2"><span class="in">calls family <b>by voice</b></span></div>
+    <div id="sm-2" class="sm clip" data-start="1.3" data-duration="4.7" data-track-index="3"><span class="in">shops, and <b>asks before buying</b></span></div>
+    <div id="sm-3" class="sm clip" data-start="2.3" data-duration="3.7" data-track-index="4"><span class="in">reads your <b>heart rate</b> from the ring</span></div>
+    <div id="sm-4" class="sm clip" data-start="3.3" data-duration="2.7" data-track-index="5"><span class="in">calls for help <b>after a fall</b></span></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#sm-head", { opacity: 0 }, { opacity: 1, duration: 0.25 }, 0.05);
+    ["#sm-1", "#sm-2", "#sm-3", "#sm-4"].forEach((id, i) => {
+      tl.fromTo(id + " .in", { opacity: 0, x: -40, filter: "blur(8px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.45, ease: "expo.out" }, 0.3 + i);
+    });
+    tl.to("#sm-head, #sm-1 .in, #sm-2 .in, #sm-3 .in, #sm-4 .in", { opacity: 0, filter: "blur(8px)", duration: 0.25, ease: "power3.in" }, 5.7);
+    window.__timelines["summary"] = tl;
+  </script>
+</template>

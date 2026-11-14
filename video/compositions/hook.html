@@ -6,21 +6,23 @@
                  line-height: 1.12; letter-spacing: -0.02em; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
     #root .who { display: block; font-size: 34px; font-weight: 700; letter-spacing: 0; opacity: 0.85; margin-bottom: 8px; }
     #root .w { display: inline-block; white-space: pre; }
+    #hook-rt { position: absolute; right: 120px; top: 80px; padding: 12px 20px; border-radius: 12px; background: rgba(29,27,24,0.72); color: #fff; font-weight: 700; font-size: 34px; font-variant-numeric: tabular-nums; }
     #hook-time { position: absolute; left: 192px; top: 110px; color: #fff; font-weight: 900; font-size: 190px;
                  letter-spacing: -0.04em; line-height: 1; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45); }
     #hook-time small { font-size: 80px; letter-spacing: -0.02em; margin-left: 18px; }
   </style>
   <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
     <!-- GX011407: double-tap, "Call my grandson", WhatsApp video call under the halo, grandson answers -->
-    <video id="hook-v1" class="clip v" src="assets/clips/call.mp4" data-start="0" data-duration="7" data-media-start="0" data-track-index="1" data-has-audio="true" data-volume="1" playsinline></video>
-    <video id="hook-v2" class="clip v" src="assets/clips/call.mp4" data-start="7" data-duration="3" data-media-start="7" data-playback-rate="3.4" data-track-index="2" muted playsinline></video>
-    <video id="hook-v3" class="clip v" src="assets/clips/call.mp4" data-start="10" data-duration="3.5" data-media-start="19.4" data-track-index="3" muted playsinline></video>
+    <video id="hook-v1" class="clip v" src="assets/clips/call.mp4" data-start="0" data-duration="13.5" data-media-start="0" data-track-index="1" data-has-audio="true" data-volume="1" playsinline></video>
+    <!-- the same take, continuing with no cut and no speed change (sound off: side chatter) -->
+    <video id="hook-v2" class="clip v" src="assets/clips/call.mp4" data-start="13.5" data-duration="10" data-media-start="13.5" data-track-index="2" muted playsinline></video>
+    <div id="hook-rt" class="clip" data-start="0.2" data-duration="23.2" data-track-index="6">Real time · no speed-up · <span id="hook-clock">0:00</span></div>
 
     <div id="hook-time" class="clip" data-start="0" data-duration="3.4" data-track-index="4"><span class="w">9:12</span><small class="w">AM</small></div>
     <div id="hook-listen" class="clip cap" data-start="3.5" data-duration="1.5" data-track-index="5"><span class="who">Moopa</span><span class="w">“I'm </span><span class="w">listening.”</span></div>
     <div id="hook-say" class="clip cap" data-start="5.05" data-duration="2.25" data-track-index="5"><span class="who">Grandpa</span><span class="w">“Call </span><span class="w">my </span><span class="w">grandson.”</span></div>
-    <div id="hook-glow" class="clip cap" data-start="7.45" data-duration="2.5" data-track-index="5"><span class="w">The </span><span class="w">glow </span><span class="w">means </span><span class="w">Moopa </span><span class="w">is </span><span class="w">working.</span></div>
-    <div id="hook-rest" class="clip cap" data-start="10.15" data-duration="3.3" data-track-index="5"><span class="w">One </span><span class="w">sentence. </span><span class="w">The </span><span class="w">phone </span><span class="w">did </span><span class="w">the </span><span class="w">rest.</span></div>
+    <div id="hook-glow" class="clip cap" data-start="7.45" data-duration="5" data-track-index="5"><span class="w">The </span><span class="w">glow </span><span class="w">means </span><span class="w">Moopa </span><span class="w">is </span><span class="w">working.</span></div>
+    <div id="hook-rest" class="clip cap" data-start="19.9" data-duration="3.6" data-track-index="5"><span class="w">One </span><span class="w">sentence. </span><span class="w">The </span><span class="w">phone </span><span class="w">did </span><span class="w">the </span><span class="w">rest.</span></div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
@@ -37,8 +39,11 @@
     const say = document.querySelectorAll("#hook-say .w");
     [5.1, 5.42, 5.66].forEach((t, i) => tl.fromTo(say[i], { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, t));
     outBlur("hook-say", 7.08);
-    inWords("hook-glow", 7.5); outBlur("hook-glow", 9.75);
-    inWords("hook-rest", 10.2); outBlur("hook-rest", 13.25);
+    inWords("hook-glow", 7.5); outBlur("hook-glow", 12.25);
+    inWords("hook-rest", 19.95); outBlur("hook-rest", 23.3);
+    const clk = { v: 0 };
+    tl.fromTo(clk, { v: 0 }, { v: 23.4, duration: 23.4, ease: "none", onUpdate: () => { const n = Math.floor(clk.v); document.getElementById("hook-clock").textContent = "0:" + String(n).padStart(2, "0"); } }, 0);
+    tl.fromTo("#hook-rt", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.2);
     window.__timelines["hook"] = tl;
   </script>
 </template>
