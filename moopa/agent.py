@@ -72,7 +72,7 @@ class MicGate:
         return (not self.bot_speaking) and now >= self.quiet_until and now < self.awake_until
 
 
-VOICE_PORT = 8770
+VOICE_PORT = int(os.getenv("MOOPA_VOICE_PORT", "47870"))  # 8770 clashed with macOS sharingd
 
 
 class PhoneVoice:
@@ -82,18 +82,24 @@ class PhoneVoice:
     def __init__(self):
         self.writer = None
         self.server = None
+        self.port = None
         self._lock = None
 
-    async def start(self):
+    async def start(self) -> int | None:
+        """Bind the first free port from VOICE_PORT on; returns it (the phone app is told which)."""
         self._lock = self._lock or asyncio.Lock()
         async with self._lock:  # start() can be reached twice; bind once
             if self.server is not None:
-                return
-            try:
-                self.server = await asyncio.start_server(self._client, "127.0.0.1", VOICE_PORT,
-                                                         reuse_address=True)
-            except OSError as e:
-                console.log(f"[voice] could not open the phone speaker port {VOICE_PORT} ({e}); using the Mac")
+                return self.port
+            for port in range(VOICE_PORT, VOICE_PORT + 20):
+                try:
+                    self.server = await asyncio.start_server(self._client, "127.0.0.1", port)
+                    self.port = port
+                    return port
+                except OSError:
+                    continue
+            console.show(f"  ❌ phone speaker: no free port from {VOICE_PORT}; the Mac will speak")
+            return None
 
     async def _client(self, reader, writer):
         if self.writer:

@@ -85,12 +85,13 @@ async def main():
     if args.mic == "band" and args.band == "off":
         sys.exit("--mic band needs a band: use --band real or --band sim")
     voice_phone = args.voice == "phone" and not args.no_phone
-    if voice_phone and phone.check():
-        phone.start_phone_voice()  # if the phone is missing now, keep_connected() does this when it returns
     agent = Agent(use_mac_mic=(args.mic == "mac"), voice_on_phone=bool(voice_phone))
+    voice_port = await agent.phone_voice.start() if voice_phone else None
+    if voice_phone and phone.check():
+        phone.start_phone_voice(voice_port)  # if the phone is missing now, keep_connected() does it later
     if not args.no_phone:
         # heal a dropped wireless-adb link mid-demo; bring the phone speaker back with it
-        phone.keep_connected(on_back=(lambda: phone.start_phone_voice()) if args.voice == "phone" else None)
+        phone.keep_connected(on_back=(lambda: phone.start_phone_voice(voice_port)) if voice_phone else None)
     agent.navigator = phone.navigate
     falls = FallResponder(agent)
     agent.on_alert = falls.alert
@@ -141,9 +142,12 @@ async def main():
                 ("Mic" + (" (band)" if args.mic == "band" else ""), d.get("agent") == "ready",
                  "check the Deepgram key / internet"),
                 (f"Brain ({brain})", d.get("agent") == "ready", "check the API key"),
-                ("Voice (phone)" if voice_phone else "Voice (Mac)",
-                 d.get("speaker") == "phone" if voice_phone else d.get("agent") == "ready",
-                 "is the Moopa Halo app installed? ./halo-app/build.sh install"),
+                (("Voice (phone)" if d.get("speaker") == "phone" else
+                  "Voice (Mac fallback)" if voice_phone and time.monotonic() - start > 10 else
+                  "Voice (phone)" if voice_phone else "Voice (Mac)"),
+                 d.get("agent") == "ready" and (not voice_phone or d.get("speaker") == "phone"
+                                                or time.monotonic() - start > 10),
+                 "check the Deepgram key / internet"),
             ]
             if args.band != "off":
                 items.append((f"Band {os.getenv('BAND_NUMBER', '?')}" + (" (pretend)" if args.band == "sim" else ""),

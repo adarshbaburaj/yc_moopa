@@ -259,13 +259,14 @@ def halo_off_now() -> None:
         _halo_cmd("hide")
 
 
-def start_phone_voice(port: int = 8770) -> bool:
+def start_phone_voice(port: int | None) -> bool:
     """Route the laptop's voice server to the phone (adb reverse) and start the app's speaker."""
-    if dry_run:
+    if dry_run or not port:
         return False
     try:
         adb("--raw", "reverse", f"tcp:{port}", f"tcp:{port}")
-        adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "voice")
+        adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "voice",
+            "--ei", "port", str(port))
         # keep Wireless debugging on across Wi-Fi hops (the app turns it back on by itself)
         adb("am", "start-foreground-service", "-n", "com.moopa.halo/.HaloService", "-a", "heal")
         return True

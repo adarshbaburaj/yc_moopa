@@ -39,7 +39,8 @@ import java.net.Socket;
 /** Draws an animated glowing border over every app while Moopa works. Touches pass through. */
 public class HaloService extends Service {
     private static final String CHANNEL = "halo";
-    private static final int VOICE_PORT = 8770;
+    private static final int VOICE_PORT = 47870;  // default; the laptop passes the real one ("port" extra)
+    private volatile int voicePort = VOICE_PORT;
     private static final int VOICE_RATE = 24000;
     private WindowManager wm;
     private HaloView view;
@@ -103,6 +104,7 @@ public class HaloService extends Service {
             removeHalo();
             stopIfIdle();
         } else if ("voice".equals(action)) {
+            voicePort = intent.getIntExtra("port", VOICE_PORT);  // a running voice thread picks it up on reconnect
             startVoice();
         } else if ("heal".equals(action)) {
             startHeal();
@@ -196,7 +198,7 @@ public class HaloService extends Service {
                 while (voiceOn) {
                     long connectedAt = 0;
                     try (Socket sock = new Socket()) {
-                        sock.connect(new InetSocketAddress("127.0.0.1", VOICE_PORT), 2000);
+                        sock.connect(new InetSocketAddress("127.0.0.1", voicePort), 2000);
                         connectedAt = SystemClock.elapsedRealtime();
                         sock.setTcpNoDelay(true);
                         InputStream in = sock.getInputStream();
