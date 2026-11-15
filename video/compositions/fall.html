@@ -8,11 +8,13 @@
     #fall-trace { position: absolute; left: 160px; top: 380px; width: 1600px; height: 520px; }
     #fall-trace text { font-family: "Inter", sans-serif; font-size: 34px; font-weight: 700; fill: #1d1b18; }
     #fall-trace .q { font-weight: 400; fill: #6d665c; font-size: 30px; }
-    #fall-clip { position: absolute; inset: 0; background: #2a2724; display: flex; align-items: center; justify-content: center; }
+    #fall-clip { position: absolute; inset: 0; background: #1d1b18; display: flex; align-items: center; justify-content: center; }
     #fall-clip .ph { color: #c9c2b6; font-size: 40px; font-weight: 700; text-align: center; line-height: 1.35; }
     #root .cap { position: absolute; left: 192px; right: 192px; bottom: 132px; color: #fff; font-weight: 700; font-size: 66px;
                  line-height: 1.12; letter-spacing: -0.02em; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
     #root .who { display: block; font-size: 34px; font-weight: 700; opacity: 0.85; margin-bottom: 8px; }
+    #fall-ask { bottom: auto; top: 380px; left: 160px; right: 160px; text-align: center; font-size: 104px; font-weight: 900; letter-spacing: -0.03em; text-shadow: none; }
+    #fall-ask .who { font-size: 40px; color: #c9c2b6; }
     #fall-count { position: absolute; inset: 0; background: #1d1b18; color: #fff; }
     #fall-count .num { position: absolute; left: 0; right: 0; top: 250px; text-align: center; font-weight: 900; font-size: 420px; line-height: 1; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; opacity: 0; }
     #fall-count .lbl { position: absolute; left: 0; right: 0; top: 760px; text-align: center; font-weight: 700; font-size: 54px; color: #c9c2b6; }
@@ -39,7 +41,6 @@
     </svg>
 
     <div id="fall-clip" class="clip" data-start="3.14" data-duration="1.43" data-track-index="4">
-      <div class="ph">PLACEHOLDER · clips/04-fall.mp4<br />a safe, staged fall onto a sofa or mat</div>
     </div>
     <div id="fall-ask" class="clip cap" data-start="3.25" data-duration="1.29" data-track-index="5"><span class="who">Moopa</span><span class="w">“Are </span><span class="w">you </span><span class="w">okay? </span><span class="w">Are </span><span class="w">you </span><span class="w">all </span><span class="w">right?”</span></div>
 
@@ -52,7 +53,6 @@
     <div id="fall-red" class="clip" data-start="6.00" data-duration="1.71" data-track-index="7">
       <div class="big"><span class="w">Moopa </span><span class="w">calls </span><span class="w">family.</span></div>
       <div class="sub">It video-calls Grandson in NYC.</div>
-      <div class="ph">PLACEHOLDER · clips/04-dashboard.mov (the family page during the fall)</div>
     </div>
   </div>
   <script>
@@ -84,8 +84,7 @@
     tl.fromTo("#fall-red", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.22, ease: "power2.inOut" }, 6.00);
     inWords("#fall-red .big .w", 6.13, 0.09);
     tl.fromTo("#fall-red .sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.11 }, 6.38);
-    tl.fromTo("#fall-red .ph", { opacity: 0 }, { opacity: 0.8, duration: 0.11 }, 6.54);
-    outBlur("#fall-red .big .w, #fall-red .sub, #fall-red .ph", 7.56);
+    outBlur("#fall-red .big .w, #fall-red .sub", 7.56);
     window.__timelines["fall"] = tl;
   </script>
 </template>
