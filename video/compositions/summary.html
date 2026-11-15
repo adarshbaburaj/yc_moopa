@@ -9,19 +9,19 @@
     .sm b { color: #7c4dff; font-weight: 900; }
   </style>
   <div id="root" data-composition-id="summary" data-width="1920" data-height="1080">
-    <div id="sm-head" class="clip" data-start="0.00" data-duration="4.02" data-track-index="1">With one double-tap, Moopa</div>
-    <div id="sm-1" class="sm clip" data-start="0.20" data-duration="3.82" data-track-index="2"><span class="in">calls family <b>by voice</b></span></div>
-    <div id="sm-2" class="sm clip" data-start="0.87" data-duration="3.15" data-track-index="3"><span class="in">shops, and <b>asks before buying</b></span></div>
-    <div id="sm-3" class="sm clip" data-start="1.54" data-duration="2.48" data-track-index="4"><span class="in">reads your <b>heart rate</b> from the ring</span></div>
-    <div id="sm-4" class="sm clip" data-start="2.21" data-duration="1.81" data-track-index="5"><span class="in">calls for help <b>after a fall</b></span></div>
+    <div id="sm-head" class="clip" data-start="0.00" data-duration="3.22" data-track-index="1">With one double-tap, Moopa</div>
+    <div id="sm-1" class="sm clip" data-start="0.16" data-duration="3.06" data-track-index="2"><span class="in">calls family <b>by voice</b></span></div>
+    <div id="sm-2" class="sm clip" data-start="0.70" data-duration="2.52" data-track-index="3"><span class="in">shops, and <b>asks before buying</b></span></div>
+    <div id="sm-3" class="sm clip" data-start="1.23" data-duration="1.98" data-track-index="4"><span class="in">reads your <b>heart rate</b> from the ring</span></div>
+    <div id="sm-4" class="sm clip" data-start="1.77" data-duration="1.45" data-track-index="5"><span class="in">calls for help <b>after a fall</b></span></div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
-    tl.fromTo("#sm-head", { opacity: 0 }, { opacity: 1, duration: 0.17 }, 0.03);
+    tl.fromTo("#sm-head", { opacity: 0 }, { opacity: 1, duration: 0.14 }, 0.02);
     ["#sm-1", "#sm-2", "#sm-3", "#sm-4"].forEach((id, i) => {
-      tl.fromTo(id + " .in", { opacity: 0, x: -40, filter: "blur(8px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.30, ease: "expo.out" }, 0.3 + i);
+      tl.fromTo(id + " .in", { opacity: 0, x: -40, filter: "blur(8px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.24, ease: "expo.out" }, 0.16 + i * 0.54);
     });
-    tl.to("#sm-head, #sm-1 .in, #sm-2 .in, #sm-3 .in, #sm-4 .in", { opacity: 0, filter: "blur(8px)", duration: 0.17, ease: "power3.in" }, 3.82);
+    tl.to("#sm-head, #sm-1 .in, #sm-2 .in, #sm-3 .in, #sm-4 .in", { opacity: 0, filter: "blur(8px)", duration: 0.14, ease: "power3.in" }, 3.06);
     window.__timelines["summary"] = tl;
   </script>
 </template>

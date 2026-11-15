@@ -1,0 +1,29 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #1d1b18; font-family: "Inter", sans-serif; color: #fff; }
+    #root .w { display: inline-block; white-space: pre; }
+    #br-q { position: absolute; left: 160px; right: 160px; top: 360px; text-align: center; font-weight: 900; font-size: 104px; letter-spacing: -0.035em; line-height: 1.08; }
+    #br-no { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-weight: 900; font-size: 360px; letter-spacing: -0.05em; line-height: 1; }
+    #br-light { position: absolute; inset: 0; background: #f4f1ec; }
+    #br-s { position: absolute; left: 120px; right: 120px; top: 380px; text-align: center; font-weight: 900; font-size: 100px; letter-spacing: -0.035em; line-height: 1.06; color: #1d1b18; }
+    #br-s .acc { color: #7c4dff; }
+  </style>
+  <div id="root" data-composition-id="bridge" data-width="1920" data-height="1080">
+    <div id="br-q" class="clip" data-start="0.1" data-duration="2.2" data-track-index="1"><span class="w">Just </span><span class="w">another </span><span class="w">voice </span><span class="w">assistant,</span><br /><span class="w">like </span><span class="w">Siri </span><span class="w">or </span><span class="w">Bixby?</span></div>
+    <div id="br-no" class="clip" data-start="2.35" data-duration="0.85" data-track-index="2"><span class="w">No.</span></div>
+    <div id="br-light" class="clip" data-start="3.2" data-duration="2.3" data-track-index="3"></div>
+    <div id="br-s" class="clip" data-start="3.3" data-duration="2.2" data-track-index="4"><span class="w">Moopa </span><span class="w">is </span><span class="w">the </span><span class="w acc">bridge</span><br /><span class="w">between </span><span class="w">older </span><span class="w">people </span><span class="w">and </span><span class="w">tech.</span></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const inWords = (sel, t, gap) => document.querySelectorAll(sel).forEach((w, i) =>
+      tl.fromTo(w, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.12, ease: "power2.out" }, t + i * gap));
+    inWords("#br-q .w", 0.15, 0.08);
+    tl.to("#br-q .w", { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power3.in" }, 2.15);
+    tl.fromTo("#br-no .w", { scale: 1.25, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "expo.out" }, 2.35);
+    tl.fromTo("#br-light", { clipPath: "circle(0% at 50% 50%)" }, { clipPath: "circle(75% at 50% 50%)", duration: 0.35, ease: "power2.inOut" }, 3.2);
+    inWords("#br-s .w", 3.4, 0.08);
+    tl.to("#br-s .w", { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power3.in" }, 5.3);
+    window.__timelines["bridge"] = tl;
+  </script>
+</template>
