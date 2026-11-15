@@ -8,7 +8,7 @@
     #fall-trace { position: absolute; left: 160px; top: 380px; width: 1600px; height: 520px; }
     #fall-trace text { font-family: "Inter", sans-serif; font-size: 34px; font-weight: 700; fill: #1d1b18; }
     #fall-trace .q { font-weight: 400; fill: #6d665c; font-size: 30px; }
-    #fall-clip { position: absolute; inset: 0; background: #1d1b18; display: flex; align-items: center; justify-content: center; }
+    #fall-clip { position: absolute; inset: 0; background: transparent; display: flex; align-items: center; justify-content: center; }
     #fall-clip .ph { color: #c9c2b6; font-size: 40px; font-weight: 700; text-align: center; line-height: 1.35; }
     #root .cap { position: absolute; left: 192px; right: 192px; bottom: 132px; color: #fff; font-weight: 700; font-size: 66px;
                  line-height: 1.12; letter-spacing: -0.02em; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55); }
@@ -22,24 +22,20 @@
     #fall-red .big { position: absolute; left: 160px; top: 330px; width: 1600px; font-weight: 900; font-size: 140px; letter-spacing: -0.04em; line-height: 1; }
     #fall-red .sub { position: absolute; left: 160px; top: 520px; width: 1600px; font-weight: 700; font-size: 50px; line-height: 1.25; }
     #fall-red .ph { position: absolute; left: 160px; top: 690px; width: 1600px; font-weight: 700; font-size: 32px; opacity: 0.8; }
+    #root .v { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; }
+    #fall-gen { position: absolute; right: 120px; top: 80px; padding: 12px 20px; border-radius: 12px; background: rgba(29,27,24,0.72); color: #fff; font-weight: 700; font-size: 34px; }
+    #fall-time { color: #fff !important; text-shadow: 0 2px 20px rgba(0,0,0,0.5); }
+    #fall-title { top: auto !important; bottom: 140px; color: #fff; text-shadow: 0 2px 20px rgba(0,0,0,0.55); }
+    #fall-title .acc { color: #ff6b6b !important; }
+    #fall-ask { text-shadow: 0 2px 24px rgba(0,0,0,0.6) !important; }
   </style>
   <div id="root" data-composition-id="fall" data-width="1920" data-height="1080">
+    <video id="fall-v1" class="clip v" src="assets/clips/fall.mp4" data-start="0" data-duration="3.14" data-media-start="0" data-playback-rate="1.91" data-track-index="1" muted playsinline></video>
+    <div id="fall-gen" class="clip" data-start="0" data-duration="4.57" data-track-index="9">AI-generated illustration · Veo</div>
     <div id="fall-time" class="clip" data-start="0.00" data-duration="0.83" data-track-index="1"><span class="w">7:30 </span><span class="w">PM</span></div>
     <div id="fall-title" class="clip" data-start="0.80" data-duration="2.34" data-track-index="2"><span class="w">The </span><span class="w">band </span><span class="w">feels </span><span class="w">a </span><span class="w acc">fall.</span></div>
-    <svg id="fall-trace" class="clip" data-start="0.00" data-duration="3.14" data-track-index="3" viewBox="0 0 1600 520" data-layout-allow-overflow>
-      <!-- y: 1 g = 330, 140 px per g (0 g = 470). Thresholds are the real ones in moopa/motion.py -->
-      <line id="fall-ff" x1="0" x2="1600" y1="414" y2="414" stroke="#6d665c" stroke-width="2" stroke-dasharray="10 12" />
-      <text id="fall-ff-t" class="q" x="1600" y="454" text-anchor="end">free-fall: under 0.4 g</text>
-      <line id="fall-im" x1="0" x2="1600" y1="120" y2="120" stroke="#6d665c" stroke-width="2" stroke-dasharray="10 12" />
-      <text id="fall-im-t" class="q" x="1600" y="106" text-anchor="end">impact: over 2.5 g</text>
-      <path id="fall-path" fill="none" stroke="#1d1b18" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"
-        d="M0,330 C40,330 60,318 90,312 C120,306 140,346 170,348 C200,350 220,314 250,312 C280,310 300,350 330,350 C360,350 380,316 410,314 C440,312 455,330 470,332
-           L520,428 L560,432 L585,70 L610,372 L640,316 L670,338 L700,328 L740,331 L1600,330" />
-      <text id="fall-l1" x="470" y="500">free-fall</text>
-      <text id="fall-l2" x="610" y="60">impact</text>
-      <text id="fall-l3" x="1000" y="300">then still for 3 seconds</text>
-    </svg>
 
+      <video id="fall-v2" class="clip v" src="assets/clips/fall.mp4" data-start="3.14" data-duration="1.43" data-media-start="4.6" data-playback-rate="0.95" data-track-index="8" muted playsinline></video>
     <div id="fall-clip" class="clip" data-start="3.14" data-duration="1.43" data-track-index="4">
     </div>
     <div id="fall-ask" class="clip cap" data-start="3.25" data-duration="1.29" data-track-index="5"><span class="who">Moopa</span><span class="w">“Are </span><span class="w">you </span><span class="w">okay? </span><span class="w">Are </span><span class="w">you </span><span class="w">all </span><span class="w">right?”</span></div>
@@ -63,15 +59,7 @@
 
     inWords("#fall-time .w", 0.06, 0.1); outBlur("#fall-time .w", 0.72);
     inWords("#fall-title .w", 0.83, 0.08);
-    // thresholds, then the trace draws: walking, free-fall, impact, still
-    tl.fromTo("#fall-ff, #fall-im, #fall-ff-t, #fall-im-t", { opacity: 0 }, { opacity: 1, duration: 0.17 }, 0.11);
-    tl.fromTo("#fall-path", { strokeDasharray: 2600, strokeDashoffset: 2600 }, { strokeDashoffset: 1700, duration: 0.77, ease: "none" }, 0.11);
-    tl.to("#fall-path", { strokeDashoffset: 1050, duration: 0.28, ease: "power2.in" }, 0.88);   // the drop and the spike, fast
-    tl.to("#fall-path", { strokeDashoffset: 0, duration: 1.21, ease: "none" }, 1.16);           // stillness
-    tl.fromTo("#fall-l1", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 0.96);
-    tl.fromTo("#fall-l2", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 1.07);
-    tl.fromTo("#fall-l3", { opacity: 0 }, { opacity: 1, duration: 0.11 }, 1.65);
-    outBlur("#fall-title .w, #fall-trace", 3.00);
+    outBlur("#fall-title .w", 2.98);
     // "Are you okay?" (the real line in moopa/fall.py)
     tl.fromTo("#fall-ask .who", { opacity: 0 }, { opacity: 0.85, duration: 0.11 }, 3.25);
     inWords("#fall-ask .w", 3.27, 0.11);
