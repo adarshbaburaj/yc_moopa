@@ -115,7 +115,7 @@ class BandLink:
             from vexo_open.transports.sim import SimTransport
 
             return Band.connect(number, SimTransport(number, auto_tap=False))
-        return Band.connect(number, auto_reconnect=True)
+        return Band.connect(number, auto_reconnect=True, reconnect_seconds=600)
 
     def _run(self):
         number = band_number()
@@ -123,6 +123,21 @@ class BandLink:
             console.log("[band] BAND_NUMBER is not set in .env (the number on the band's bag). Running without the band.")
             state.update("devices.band", "off")
             return
+        while True:  # the library gave up reconnecting ("disconnect"): start over, never leave a dead band
+            self._session(number)
+            old, self.band = self.band, None
+            try:
+                old.disconnect()
+            except Exception:
+                pass
+            self._mic_on = False
+            state.update("devices.band", "connecting")
+            state.emit("system", "Band lost: double-tap the band to reconnect")
+            console.show("  ⌚ ❌ Band lost: double-tap it (blinking blue) and keep it close; close the Vexo kit dashboard")
+            time.sleep(1)
+
+    def _session(self, number: int):
+        self._gone = threading.Event()
         console.log(f"[band] connecting to Vexo-HACK-{number:02d}{' (pretend band)' if self.sim else ''}... "
               f"{'' if self.sim else 'double-tap the band (blinking blue = findable)'}")
         state.update("devices.band", "connecting")
@@ -149,6 +164,7 @@ class BandLink:
         b.on("activity", lambda e: put(("activity", (e.steps, e.state))))
         b.on("reconnecting", lambda e: put(("link", "lost")))
         b.on("reconnected", lambda e: put(("link", "back")))
+        b.on("disconnect", lambda e: self._gone.set())
         b.on("stream-taken", lambda e: put(("taken", list(getattr(e, "streams", []) or []))))
         b.on("audio", lambda a: self.audio.put_nowait(a) if not self.audio.full() else None)
         b.on("motion", lambda m: self.motion_q.append((m.t / 1000.0, m.ax, m.ay, m.az)))
@@ -173,10 +189,10 @@ class BandLink:
             from vexo_open.audio import PcmDecoder
 
             console.log("[band] preparing the audio decoder (a few seconds, once)...")
-            self._decoder = PcmDecoder()
+            self._decoder = self._decoder or PcmDecoder()
             state.update("devices.mic", "band")
         self.light("idle")
-        while True:
+        while not self._gone.is_set():
             try:
                 self._tick()
             except Exception as e:
@@ -226,6 +242,7 @@ class BandLink:
                              "Close that tab, then press 'Take band back' on Moopa's dashboard.")
             elif kind == "link":
                 state.emit("system", f"Band link {data}")
+                state.update("devices.band", "on" if data == "back" else "reconnecting")
                 if data == "back":
                     self._mic_on = False
                     self.light("idle")
