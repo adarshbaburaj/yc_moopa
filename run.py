@@ -97,7 +97,8 @@ async def main():
     falls = FallResponder(agent)
     agent.on_alert = falls.alert
     agent.transcript_hooks.append(falls.on_transcript)
-    agent.on_emergency_stop.append(lambda: falls._cancel("Emergency stop"))
+    agent.on_emergency_stop.append(lambda: (falls.checking or falls.verifying or state.get("status") != "OK")
+                                   and falls._cancel("Emergency stop"))
 
     band = None
     if args.band != "off":
