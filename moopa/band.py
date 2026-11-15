@@ -81,6 +81,19 @@ class BandLink:
             sim.tap("free-fall")
             sim.set_activity("still")
 
+    def take_back(self):
+        """After the other program (e.g. the kit dashboard) is closed: get the band's streams back."""
+        if not self.band or self.sim:
+            return
+        try:
+            self.band.take_back()
+            if self._motion_ok:  # settings are shared: the other program may have changed them
+                self.band.set_motion(accel_range=8)
+            state.update("devices.band", "on")
+            state.emit("system", "Band taken back: Moopa gets its data again")
+        except Exception as e:
+            state.emit("system", f"Could not take the band back: {str(e)[:120]}")
+
     def light(self, name: str):
         """Only while the mic is off (the band refuses LED commands otherwise)."""
         if not self.band or self._mic_on:
@@ -136,6 +149,7 @@ class BandLink:
         b.on("activity", lambda e: put(("activity", (e.steps, e.state))))
         b.on("reconnecting", lambda e: put(("link", "lost")))
         b.on("reconnected", lambda e: put(("link", "back")))
+        b.on("stream-taken", lambda e: put(("taken", list(getattr(e, "streams", []) or []))))
         b.on("audio", lambda a: self.audio.put_nowait(a) if not self.audio.full() else None)
         b.on("motion", lambda m: self.motion_q.append((m.t / 1000.0, m.ax, m.ay, m.az)))
         b.configure(events=True, activity=True, battery=True)
@@ -204,6 +218,12 @@ class BandLink:
                     self._fall_at = None
             elif kind == "activity":
                 self._activity(now, *data)
+            elif kind == "taken":
+                state.update("devices.band", "taken")
+                state.emit("system", f"Another program took the band's {', '.join(data) or 'data'} "
+                                     "(the Vexo kit dashboard?). Close it, then press 'Take band back'.")
+                console.show("  ⌚ ❌ Another program (the Vexo kit dashboard?) took the band's data. "
+                             "Close that tab, then press 'Take band back' on Moopa's dashboard.")
             elif kind == "link":
                 state.emit("system", f"Band link {data}")
                 if data == "back":

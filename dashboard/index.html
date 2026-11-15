@@ -161,6 +161,7 @@
     <button onclick="act('double_tap')">Double-tap band</button>
     <button class="danger" onclick="act('fall')">Pretend fall</button>
     <button onclick="act('cancel')">Clear alert</button>
+    <button class="danger" id="takeback" style="display:none" onclick="act('band_take_back')">Take band back</button>
     <a href="?view=grandpa">Grandpa view →</a>
   </div>
 </div>
@@ -324,10 +325,11 @@ function render(s) {
   const d = s.devices || {};
   const label = { band: "Band", ring: "Ring", phone: "Phone", mic: "Mic", speaker: "Voice" };
   $("devices").innerHTML = Object.keys(label).filter(k => d[k]).map(k => {
-    const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) ? "on" : val === "sim" ? "sim" : "";
-    const txt = k === "ring" && val === "sim" ? "streaming · demo data" : k === "band" && val === "sim" ? "pretend" : val;
+    const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) ? "on" : val === "sim" ? "sim" : val === "taken" ? "sim" : "";
+    const txt = k === "ring" && val === "sim" ? "streaming · demo data" : k === "band" && val === "sim" ? "pretend" : k === "band" && val === "taken" ? "taken by another program" : val;
     return `<span class="dev ${cls}">${label[k]}: ${esc(txt)}</span>`;
   }).join("");
+  $("takeback").style.display = d.band === "taken" ? "inline-block" : "none";
   // grandpa strip
   $("g-steps").textContent = (a.steps || 0).toLocaleString();
   $("g-hr").textContent = v.heart_rate ?? "–";

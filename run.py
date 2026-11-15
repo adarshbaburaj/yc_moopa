@@ -125,7 +125,8 @@ async def main():
             agent.toggle()
 
     server.actions.update({"wake": lambda: agent.wake(hold=True), "stop": agent.stop_listening, "fall": pretend_fall, "cancel": falls.reset,
-                           "double_tap": double_tap})
+                           "double_tap": double_tap,
+                           "band_take_back": lambda: band and threading.Thread(target=band.take_back, daemon=True).start()})
     keys = {"d": double_tap, "f": pretend_fall, "c": falls.reset}
 
     stop = threading.Event()
@@ -158,7 +159,8 @@ async def main():
             if args.band != "off":
                 items.append((f"Band {os.getenv('BAND_NUMBER', '?')}" + (" (pretend)" if args.band == "sim" else ""),
                               d.get("band") in ("on", "sim") and bool(d.get("fall_sensor")),
-                              "double-tap the band (blinking blue), keep it close"))
+                              "close the Vexo kit dashboard tab (only one program can hold the band), "
+                              "then double-tap the band (blinking blue), keep it close"))
             if args.ring != "off":
                 live = d.get("ring") == "on"
                 items.append(("Ring" if live else "Ring (SIMULATED)", d.get("ring") in ("on", "sim"),
