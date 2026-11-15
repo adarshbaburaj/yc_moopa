@@ -20,6 +20,11 @@ def index():
     return FileResponse(DASH)
 
 
+@app.get("/stop")
+def stop_page():
+    return FileResponse(DASH.parent / "stop.html")
+
+
 @app.get("/signups")
 def signups_page():
     return FileResponse(DASH.parent / "signups.html")

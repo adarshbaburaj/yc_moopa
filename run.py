@@ -97,12 +97,15 @@ async def main():
     falls = FallResponder(agent)
     agent.on_alert = falls.alert
     agent.transcript_hooks.append(falls.on_transcript)
+    agent.on_emergency_stop.append(lambda: falls._cancel("Emergency stop"))
 
     band = None
     if args.band != "off":
         from moopa.band import BandLink
 
         band = BandLink(agent, sim=(args.band == "sim"), use_band_mic=(args.mic == "band"))
+        # double-tap while Moopa is busy on the phone = emergency stop (before anything else sees it)
+        band.double_tap_hooks.append(lambda: agent.is_busy() and (agent.emergency_stop("band double-tap") or True))
         band.double_tap_hooks.append(falls.on_double_tap)
         band.fall_hooks.append(falls.trigger)
         band.start()
@@ -126,12 +129,23 @@ async def main():
 
     server.actions.update({"wake": lambda: agent.wake(hold=True), "stop": agent.stop_listening, "fall": pretend_fall, "cancel": falls.reset,
                            "double_tap": double_tap,
+                           "estop": lambda: agent.emergency_stop("dashboard"),
                            "band_take_back": lambda: band and threading.Thread(target=band.take_back, daemon=True).start()})
-    keys = {"d": double_tap, "f": pretend_fall, "c": falls.reset}
+    keys = {"d": double_tap, "f": pretend_fall, "c": falls.reset,
+            "x": lambda: agent.emergency_stop("laptop key"), "\x1b": lambda: agent.emergency_stop("laptop key")}
 
     stop = threading.Event()
     threading.Thread(target=keyboard, args=(agent, keys, stop), daemon=True).start()
     port = server.free_port(args.port)
+
+    def phone_stop_page():  # the phone's browser reaches the laptop's STOP page through adb reverse
+        try:
+            phone.adb("--raw", "reverse", f"tcp:{port}", f"tcp:{port}")
+        except Exception as e:
+            console.log(f"[estop] phone STOP page not available: {e}")
+    if not args.no_phone:
+        threading.Thread(target=phone_stop_page, daemon=True).start()
+        phone.on_reconnect.append(phone_stop_page)
     if port != args.port:
         console.log(f"[server] port {args.port} is busy (an old run.py still open?) -> using {port}")
     console.log(f"brain: {llm_provider()} | band: {args.band} | mic: {args.mic} | "
@@ -180,7 +194,8 @@ async def main():
                                      if args.band != "off" else "\n  👍  READY FOR ACTION — press SPACE to talk")
                         console.show(f"     grandpa screen  http://127.0.0.1:{port}/?view=grandpa\n"
                                      f"     family screen   http://127.0.0.1:{port}/?view=family\n"
-                                     f"     (SPACE talk · f pretend fall · c reset · q quit)\n")
+                                     f"     STOP from the phone: open http://127.0.0.1:{port}/stop in its browser\n"
+                                     f"     (SPACE talk · x or Esc EMERGENCY STOP · f pretend fall · c reset · q quit)\n")
                         return
             await asyncio.sleep(0.5)
 

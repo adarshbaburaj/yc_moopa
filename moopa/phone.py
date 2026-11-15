@@ -88,6 +88,7 @@ def _log(text: str, **data) -> None:
 
 
 def adb(*args: str, timeout: float = 15) -> str:
+    _check_stop()  # an emergency stop ends a running task at its next phone command
     cmd = [ADB, "shell", *args] if args and args[0] != "--raw" else [ADB, *args[1:]]
     if dry_run:
         console.log("[phone dry-run]", " ".join(cmd))
@@ -154,6 +155,74 @@ from contextlib import contextmanager
 _halo_lock = _threading.Lock()
 _halo_users = 0
 
+# ---------- emergency stop ----------
+# Every phone task runs inside working(), which remembers the stop generation it started in.
+# stop_all() bumps the generation: the task's next adb command or navigator step raises Stopped.
+_stop_gen = 0
+_active = 0          # tasks running right now (no linger), for "is Moopa busy on the phone?"
+_tl = _threading.local()
+STOPPED_MSG = "STOPPED BY THE EMERGENCY STOP. The person has already been told. Say nothing."
+
+
+class Stopped(Exception):
+    pass
+
+
+def _check_stop() -> None:
+    g = getattr(_tl, "gen", None)
+    if g is not None and g != _stop_gen:
+        raise Stopped()
+
+
+def busy() -> bool:
+    return _active > 0
+
+
+def stop_all() -> None:
+    """Make every running phone task stop at its next step. Thread-safe enough (an int bump)."""
+    global _stop_gen
+    _stop_gen += 1
+
+
+def stoppable(fn):
+    """Decorator: a task cut off by the emergency stop returns STOPPED_MSG instead of raising."""
+    import functools
+
+    @functools.wraps(fn)
+    def wrap(*a, **k):
+        try:
+            return fn(*a, **k)
+        except Stopped:
+            _log("Stopped (emergency stop)")
+            return STOPPED_MSG
+    return wrap
+
+
+def emergency_phone() -> None:
+    """End a call Moopa placed, leave the app it was driving, hide the halo. Never locks the phone."""
+    if dry_run:
+        return
+    def raw(*args, timeout=6):
+        try:
+            return subprocess.run([ADB, "shell", *args], capture_output=True, text=True, timeout=timeout).stdout
+        except Exception:
+            return ""
+    # a normal phone call: end it (only when one is up: ENDCALL with no call can turn the screen off)
+    if re.search(r"mCallState=[12]", raw("dumpsys", "telephony.registry")):
+        raw("input", "keyevent", "KEYCODE_ENDCALL")
+    # a WhatsApp call: press its own end button
+    try:
+        h = _helpers()
+        for q in ("End call", "Leave call", "Cancel", "Decline"):
+            hits = h.find_nodes(q, exact=True, clickable_only=False)
+            if hits:
+                h.tap_node(hits[0])
+                break
+    except Exception:
+        pass
+    raw("input", "keyevent", "KEYCODE_HOME")
+    _halo_cmd("hide")
+
 
 def _halo_cmd(action: str) -> None:
     try:
@@ -166,15 +235,32 @@ def _halo_cmd(action: str) -> None:
 def working(linger: float = 0.0, label: str | None = None):
     """Halo on while the block runs (nested uses share one halo); off `linger` s after the last ends.
     `label` ("Calling Grandson in NYC…") is shown by the dashboard's mascot while the work runs."""
-    global _halo_users
+    global _halo_users, _active
     if label:
         state.update("working", label)
-    if dry_run or os.getenv("MOOPA_HALO", "1") == "0":
-        try:
+    outer = getattr(_tl, "gen", None)
+    if outer is None:
+        _tl.gen = _stop_gen  # tasks started after a stop run normally
+    _active += 1
+    try:
+        _check_stop()
+        if dry_run or os.getenv("MOOPA_HALO", "1") == "0":
+            try:
+                yield
+            finally:
+                state.update("working", None)
+            return
+        with _halo_on(linger):
             yield
-        finally:
-            state.update("working", None)
-        return
+    finally:
+        _active -= 1
+        if outer is None:
+            _tl.gen = None
+
+
+@contextmanager
+def _halo_on(linger: float):
+    global _halo_users
     with _halo_lock:
         _halo_users += 1
         first = _halo_users == 1
@@ -226,6 +312,9 @@ def _try_reconnect() -> None:
         pass
 
 
+on_reconnect: list = []  # more callables to run when the phone comes back (e.g. the STOP page's adb reverse)
+
+
 def keep_connected(on_back=None, every: float = 5.0) -> None:
     """Background thread: notice when the phone drops off adb, keep trying, restore on return."""
     if dry_run:
@@ -246,9 +335,9 @@ def keep_connected(on_back=None, every: float = 5.0) -> None:
                 if ok:
                     state.emit("system", "Phone reconnected")
                     console.show("  📱 ✅ Phone reconnected")
-                    if on_back:
+                    for fn in ([on_back] if on_back else []) + list(on_reconnect):
                         try:
-                            on_back()
+                            fn()
                         except Exception as e:
                             console.log(f"[phone] restore after reconnect failed: {e}")
                 else:
@@ -284,6 +373,7 @@ def start_phone_voice(port: int | None) -> bool:
 
 # ---------- fast paths ----------
 
+@stoppable
 def call_number(number: str, who: str = "") -> None:
     number = re.sub(r"[^\d+]", "", number)
     with working(linger=3, label=f"Calling {who or number}…"):
@@ -457,6 +547,7 @@ def _node_at(nodes, x, y):
     return None
 
 
+@stoppable
 def run_task(goal: str, max_steps: int = 15, extra: str = "") -> str:
     """Blocking. Returns a short sentence for the voice agent to speak from."""
     with working(linger=1.5, label="Working on your phone…"):
@@ -472,9 +563,14 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "", allow_checkout: b
     _log(f"Navigator started: {goal}")
     history: list[str] = []
     for step in range(max_steps):
+        _check_stop()
         nodes, png = _read_screen()
+        _check_stop()
         try:
             act = _ask_model(_nav_prompt(goal, nodes, history, extra), png)
+            _check_stop()
+        except Stopped:
+            raise
         except Exception as e:
             _log(f"Navigator model error: {e}")
             return "I had trouble reading the phone screen."
@@ -541,6 +637,8 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "", allow_checkout: b
                 h.back()
                 _log("Pressed Back", why=why)
                 history.append("back")
+        except Stopped:
+            raise
         except Exception as e:
             history.append(f"{a} failed: {str(e)[:150]}")
             _log(f"{a} failed: {str(e)[:120]}")
@@ -552,6 +650,7 @@ def _run_task(goal: str, max_steps: int = 15, extra: str = "", allow_checkout: b
     return "I could not finish that on the phone. It may need a person to look."
 
 
+@stoppable
 def shop(item: str) -> str:
     """Fast path for shopping: open Amazon's search results by link (skips open/tap/type), then let
     the navigator choose one and add it to the cart. Never buys (FORBIDDEN still applies)."""
@@ -577,6 +676,7 @@ def shop(item: str) -> str:
                                "Shall I go to checkout?\"")
 
 
+@stoppable
 def checkout_preview() -> str:
     """After a clear spoken yes: go to Amazon's final review screen and STOP there.
     'Proceed to checkout' is allowed here; 'Place your order', 'Buy now', 'Pay' never are."""
@@ -601,6 +701,7 @@ def checkout_preview() -> str:
                   "<order total>. I have not placed it.\"")
 
 
+@stoppable
 def video_call(number: str, who: str) -> str:
     """Open the WhatsApp chat (fast path), then press the video icon via its content description."""
     with working(linger=3, label=f"Calling {who}…"):
