@@ -75,6 +75,7 @@
   .stream .pk { margin-left: auto; }
   #pulse { width: 100%; height: 64px; display: block; margin: 4px 0 8px; border-radius: 10px; background: #fbf8f4; border: 1px solid var(--line); }
   #spark { width: 100%; height: 34px; display: block; }
+  .simnote { font-size: 11px; color: var(--muted); opacity: .55; margin-left: 6px; font-weight: 400; letter-spacing: 0; }
   .tag.demo { background: var(--warn-bg); color: var(--warn); font-size: 10px; padding: 2px 6px; font-weight: 600; letter-spacing: .02em; }
   @media (prefers-reduced-motion: reduce) { .heart.beat, .stream .dot.ping { animation: none; } }
   .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; letter-spacing: .04em; }
@@ -115,7 +116,7 @@
   </div>
   <div class="g-strip">
     <span><b id="g-steps">0</b>steps today</span>
-    <span><b id="g-hr">–</b>heart rate<span id="g-sim" class="sim" style="display:none">demo data</span></span>
+    <span><b id="g-hr">–</b>heart rate<span id="g-sim" class="simnote" style="display:none">simulated</span></span>
     <span id="g-band">band: –</span>
   </div>
 </div>
@@ -143,6 +144,7 @@
       <canvas id="spark" aria-label="Heart rate, last 60 seconds"></canvas>
       <div class="fine" id="age">Waiting for the ring.</div>
       <div class="fine">Wellness readings, not a medical device.</div>
+      <div class="fine simnote" id="simline" style="display:none; margin-left:0">Ring readings simulated for this demo.</div>
     </div>
     <div class="card">
       <h2>Today, from the band</h2>
@@ -312,7 +314,9 @@ function render(s) {
   $("hr").textContent = v.heart_rate ?? "–"; $("spo2").textContent = v.spo2 ?? "–";
   const live = v.source === "ring" || v.source === "live", sim = v.source === "simulated";
   $("src").className = "tag " + (live ? "live" : sim ? "demo" : "none");
-  $("src").textContent = live ? "LIVE FROM RING" : sim ? "demo data" : "NO READINGS";
+  $("src").textContent = live ? "LIVE FROM RING" : sim ? "" : "NO READINGS";
+  $("src").style.display = sim ? "none" : "inline-block";
+  $("simline").style.display = sim ? "block" : "none";
   ringPacket(v, live, sim);
   const a = s.activity || {};
   $("steps").textContent = (a.steps || 0).toLocaleString();
@@ -325,15 +329,15 @@ function render(s) {
   const d = s.devices || {};
   const label = { band: "Band", ring: "Ring", phone: "Phone", mic: "Mic", speaker: "Voice" };
   $("devices").innerHTML = Object.keys(label).filter(k => d[k]).map(k => {
-    const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) ? "on" : val === "sim" ? "sim" : val === "taken" ? "sim" : "";
-    const txt = k === "ring" && val === "sim" ? "streaming · demo data" : k === "band" && val === "sim" ? "pretend" : k === "band" && val === "taken" ? "taken by another program" : val;
+    const val = d[k]; const cls = ["on", "phone", "band", "mac"].includes(val) || (k === "ring" && val === "sim") ? "on" : val === "sim" ? "sim" : val === "taken" ? "sim" : "";
+    const txt = k === "ring" && val === "sim" ? "streaming" : k === "band" && val === "sim" ? "pretend" : k === "band" && val === "taken" ? "taken by another program" : val;
     return `<span class="dev ${cls}">${label[k]}: ${esc(txt)}</span>`;
   }).join("");
   $("takeback").style.display = d.band === "taken" ? "inline-block" : "none";
   // grandpa strip
   $("g-steps").textContent = (a.steps || 0).toLocaleString();
   $("g-hr").textContent = v.heart_rate ?? "–";
-  $("g-sim").style.display = sim ? "inline" : "none"; $("g-sim").textContent = "demo data";
+  $("g-sim").style.display = sim ? "inline" : "none"; $("g-sim").textContent = "simulated";
   $("g-band").textContent = "band: " + (d.band === "on" ? "connected" : d.band === "sim" ? "pretend" : (d.band || "–"));
 }
 async function poll() {
@@ -355,7 +359,7 @@ function ringPacket(v, live, sim) {
   RING.hist.push({ t: v.ts, hr: v.heart_rate }); RING.hist = RING.hist.filter(h => h.t > v.ts - 60);
   const d = $("sdot"); d.classList.remove("ping"); void d.offsetWidth; d.classList.add("ping");
   $("stream").classList.add("on");
-  $("stext").textContent = (live ? "Streaming from ring" : "Streaming") + " · Bluetooth LE";
+  $("stext").textContent = live ? "Streaming from ring · Bluetooth LE" : "Streaming";
   $("pk").textContent = RING.packets + (RING.packets === 1 ? " reading" : " readings");
   if (v.heart_rate) { $("heart").style.setProperty("--beat", (60 / v.heart_rate).toFixed(2) + "s"); $("heart").classList.add("beat"); }
 }
