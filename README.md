@@ -1,156 +1,127 @@
-# Moopa 🫶
+# Moopa
 
-**A wristband that helps grandparents use their phone just by talking, and calls family if they fall.**
+### Let's make ageing more independent.
 
-> "My grandfather fainted alone at home in June and none of us knew."
-> That's why we built Moopa.
-
-Let's make ageing more independent.
+**Moopa is a wristband that lets older people use their phone just by talking. And when they fall, it checks on them and calls family, without being asked.**
 
 ---
 
-## What is Moopa? (the short version)
+## The problem
 
-Phones are hard when your eyes are tired and your fingers shake.
-So Moopa lets a grandparent **skip the screen completely**.
+> "My grandfather fainted alone at home in June, and none of us knew."
 
-1. They **tap their wristband twice**.
-2. They **say what they want**, like *"Call my grandson."*
-3. Moopa **uses the phone for them**: it opens the app, finds the button and taps it, just like a helpful grandchild would.
+Our parents and grandparents increasingly live alone, often far from their children. Their phone is their lifeline to family, shopping and help, but it was built for young eyes and steady fingers. Tiny buttons, menus and passwords quietly lock them out.
 
-While Moopa is working, the phone glows with a soft rainbow border (we call it **the halo**), so you can see it's busy.
+Today's answers don't fit:
+- **Voice assistants** (Siri, Bixby, Google Assistant) only do what each app allows them to. They can't really *use* the phone for you.
+- **Fall alarms** are separate gadgets with a panic button that you have to press, and you can't press it if you're on the floor and confused.
+- **Families** end up either worrying all day or phoning every hour.
 
----
+## The solution
 
-## What can it do?
+**Moopa is the bridge between older people and technology.**
 
-| You say… | Moopa does… |
+A soft band on the wrist and a ring on the finger, with an AI agent that operates the phone the way a patient grandchild would.
+
+1. **Tap the band twice.**
+2. **Say what you want.**
+3. **Moopa does it on the phone**: it opens the app, reads the screen, and taps the right buttons. A glowing halo on the screen shows it's working.
+
+No new apps to learn. No screens to read. Just talking.
+
+## What Moopa does today
+
+| They say… | Moopa… |
 |---|---|
-| 📞 "Call my grandson." | Opens WhatsApp and starts a video call with him. |
-| 🧘 "Order yoga mats for me, please." | Opens Amazon, finds a yoga mat, puts it in the cart, tells you the name and price, then **asks "Shall I go to checkout?"** It never buys anything without a spoken **yes**, and it never presses "Place order" by itself. |
-| ❤️ "How am I doing today?" | Tells you your heart rate and blood oxygen (from the ring) and your steps (from the band). |
-| 🆘 *(nothing, because you fell)* | The band feels the fall. Moopa asks **"Are you okay? Are you all right?"** If you say you're fine, it relaxes. If you ask for help, or say nothing for 10 seconds, it **calls your family** and the family's screen turns **red**. |
+| **"Call my grandson."** | opens WhatsApp and starts the video call. *(Demo: one real take, about 20 seconds from double-tap to his face.)* |
+| **"Order yoga mats for me, please."** | finds a mat on Amazon, adds it to the cart, reads back the name and price, and asks **"Shall I go to checkout?"** **Nothing is bought without a spoken yes**, and Moopa never presses "Place order" itself. |
+| **"How am I doing today?"** | answers from the ring (heart rate, blood oxygen) and the band (steps, activity). |
+| *(nothing, because they've fallen)* | The band feels the fall. Moopa asks **"Are you okay? Are you all right?"** If they're fine, it stands down. If they ask for help, or don't answer for 10 seconds, it **calls family**, and the family dashboard turns **red**. |
 
----
+The family gets a live dashboard showing vitals, activity, and everything Moopa heard and did. The grandparent gets a calm screen with **Moo**, a friendly pixel character that shows what's happening in big, simple words.
 
-## The pieces
+## Why now
 
-- **The band (Vexo Open band)**: goes on your wrist. It has a microphone (to hear you) and a motion sensor (to feel a fall).
-- **The ring (COLMI R02)**: goes on your finger. It measures heart rate and blood oxygen.
-- **The phone (Android)**: Moopa controls it over Wi-Fi. No cables!
-- **The laptop**: runs Moopa's brain.
-- **Two screens**:
-  - **Grandpa screen**: a cute pixel helper called **Moo** who shows what's happening ("I'm listening…", "Calling Grandson…", "Are you okay?").
-  - **Family screen**: shows heart rate, steps, everything Moopa heard and did, and turns red if there's an emergency.
+- AI models can now **see a phone screen and decide what to tap**, reliably enough to do real tasks in ordinary apps, with no special integrations.
+- Real-time speech is now fast and accurate enough for a natural back-and-forth with an older voice.
+- Wearables like the Vexo band and the COLMI ring are cheap, comfortable and open to developers.
 
----
+## How it works
 
-## How does it work? (like you're 10)
-
-Think of Moopa as a team of helpers passing a note along:
-
-1. **The ears 👂**: [Deepgram](https://deepgram.com) turns your voice into words (inside [Pipecat](https://github.com/pipecat-ai/pipecat), which keeps the conversation flowing in real time).
-2. **The brain 🧠**: [OpenAI](https://openai.com) reads the words and decides what to do: call, shop, check vitals, or get help.
-3. **The eyes 👀**: [Gemini](https://deepmind.google/technologies/gemini/) (on Google Vertex AI) looks at the phone screen and picks **one safe tap at a time**.
-4. **The hands ✋**: Phone Harness taps the phone over Wi-Fi, like a finger would.
-5. **The double-checker ✅**: [TypeSafe System One](https://typesafe.ai) checks "Was that *really* a yes?" before going to checkout. Gemini judges "Did they say they're okay?" after a fall.
-6. **The voice 🔊**: Deepgram reads Moopa's answer out loud from the phone's own speaker.
-
-**No Bixby. No Siri.** Moopa doesn't need any special app support. It reads the screen and taps, just like you do.
-
----
-
-## How does it know someone fell?
-
-The band's motion sensor checks for three things in a row:
-
-1. **Falling**: for a moment it feels almost weightless (under 0.4 g).
-2. **Bump**: then a big hit (over 2.5 g).
-3. **Stillness**: then no movement for 3 seconds.
-
-If all three happen, Gemini double-checks the numbers (about 1 second). Then Moopa asks "Are you okay?"
-If the answer isn't clear, it asks once more: "Are you hurt? Say yes or no."
-**Double-tapping the band means "I'm fine."**
-
----
-
-## What's real and what's pretend? (being honest)
-
-| Thing | Real or pretend? |
+| Job | What we use |
 |---|---|
-| Voice → phone call on WhatsApp | ✅ Real (in the demo video, uncut, just sped up) |
-| Voice → Amazon yoga mat in the cart → "Shall I go to checkout?" | ✅ Real |
-| The halo glow on the phone | ✅ Real (our own little Android app) |
-| Fall detection from the band | ✅ Real code, tested with a pretend band and real Gemini |
-| The fall person in the video | ⚠️ **AI-generated** with Google Veo, and labelled that way on screen |
-| Heart rate in the video | ⚠️ **Simulated**, and labelled SIMULATED. Moopa tries the real ring first and says "SIMULATED" everywhere if it can't reach it. |
-| 8 sign-ups, 4 would pay $10, 21 care agencies emailed | ✅ Real numbers from our Google Form and outreach on 14 Nov 2026 |
+| Hear the request | Vexo band microphone (on only after a double-tap) → **Deepgram** speech-to-text in a **Pipecat** real-time pipeline |
+| Understand and decide | **OpenAI** picks the right action: call, shop, vitals, or alert |
+| Use the phone | **Gemini** (Vertex AI) reads the screen and picks one safe tap at a time; **Phone Harness** taps the Android phone over Wi-Fi |
+| Double-check | **TypeSafe System One** checks that a "yes" really means yes before checkout |
+| Speak back | **Deepgram** voice, played from the phone's own speaker |
+| Spot a fall | the band's motion sensor: weightless (< 0.4 g) → impact (> 2.5 g) → still for 3 s, then a ~1 s **Gemini** check, then the spoken check-in |
+| Vitals | **COLMI R02** ring: heart rate and blood oxygen |
 
-Moopa is a **wellness and safety helper, not a medical device**. It never diagnoses anything.
+**Safety rules built into the code:** Moopa never taps "Buy now", "Place order" or "Pay". It treats anything on the screen as information, never as instructions. It is a wellness and safety helper, **not a medical device**, and never diagnoses.
+
+## Traction (built and tested in one day)
+
+All numbers are real, from our Google Form and outreach on 14 Nov 2026:
+
+- **8 people signed up** for Moopa. Not just friends: they include my professor and a stranger I met on a flight.
+- **4 of the 8 said they would pay $10 (refundable) to reserve one.**
+- **21 home-care agencies and contacts** reached by email.
+- What they want most: **a fall alert that calls family** and **heart-rate trends** (3 of 8 each).
+- Who it's for: a grandparent (3), both parents (2), a mother (2), a father (1).
+
+## Business model
+
+- **Families** buy the band and ring kit and pay a small monthly subscription for the agent and the family dashboard.
+- **Home-care agencies** use Moopa across their clients, with one dashboard for all of them.
+- We're starting with **$10 refundable reservations** to measure real demand.
+
+## What's next
+
+- Live heart-rate streaming from the ring during demos, plus long-term wellness trends for families.
+- More everyday tasks: doctor appointments, groceries, taxis, paying bills (always with a spoken yes).
+- A pilot with the care agencies who replied.
+- An even simpler band: speaker and mic on the wrist, so the phone can stay in another room.
+
+## Honest notes on the demo
+
+| | |
+|---|---|
+| Voice → WhatsApp video call | ✅ Real, one uncut take (sped up in the video, and labelled) |
+| Voice → Amazon cart → "Shall I go to checkout?" | ✅ Real |
+| Halo glow on the phone | ✅ Real (our own small Android app) |
+| Fall detection + "Are you okay?" check-in | ✅ Real code, tested end to end with a simulated band fall and live Gemini |
+| The person falling in the video | ⚠️ AI-generated with Google Veo, labelled on screen |
+| Heart-rate numbers in the video | ⚠️ Simulated, labelled SIMULATED (the app tries the real ring first) |
 
 ---
 
-## Run it yourself
+<details>
+<summary><b>Run it yourself</b></summary>
 
-You need: a Mac, an Android phone with Wireless debugging on, Python 3.12, and API keys.
+You need a Mac, an Android phone with Wireless debugging on, Python 3.12, and API keys (Deepgram, OpenAI, Google Vertex AI, TypeSafe).
 
 ```bash
-# 1. Get the code
-git clone https://github.com/adarshbaburaj/yc_moopa.git
-cd yc_moopa
-
-# 2. Make a Python home for it and install the parts
+git clone https://github.com/adarshbaburaj/yc_moopa.git && cd yc_moopa
 python3 -m venv .venv
 .venv/bin/pip install pipecat-ai deepgram-sdk openai google-genai fastapi uvicorn sounddevice python-dotenv colmi-r02-client
-
-# 3. Add your keys (copy the example, then fill it in; never share this file)
-cp .env.example .env
-
-# 4. Start Moopa
+cp .env.example .env        # add your keys; never commit this file
 .venv/bin/python run.py --band real --ring real --no-camera
 ```
 
-When you see **👍 READY FOR ACTION**, double-tap the band and talk.
-
-Open the two screens in a browser:
-- Grandpa screen: http://127.0.0.1:8765/?view=grandpa
+When it says **READY FOR ACTION**, double-tap the band and speak.
+- Grandparent screen: http://127.0.0.1:8765/?view=grandpa
 - Family screen: http://127.0.0.1:8765/?view=family
 
-**No band or phone yet?** Try `.venv/bin/python run.py --band sim --no-phone` and press **SPACE** to talk, or **f** to pretend to fall.
-
-Useful switches: `--band real|sim|off`, `--ring real|sim|off`, `--mic band|mac`, `--voice phone|mac`, `--no-phone`, `--no-camera`, `--verbose`.
-
----
-
-## What's in this folder?
+No hardware? `.venv/bin/python run.py --band sim --no-phone`, then press SPACE to talk or **f** to pretend to fall.
 
 ```
-run.py               starts everything
-moopa/
-  agent.py           the voice helper (ears, brain, voice)
-  phone.py           taps the phone, finds buttons, never presses "Place order"
-  band.py            talks to the wristband
-  motion.py          spots falls from the motion sensor
-  fall.py            "Are you okay?" and calling family
-  ring.py            heart rate from the ring (or SIMULATED)
-  server.py          feeds the two screens
-dashboard/           the Grandpa screen (with Moo) and the Family screen
-halo-app/            the tiny Android app that makes the phone glow and talk
-video/               our demo film (made with HyperFrames)
+run.py          starts everything
+moopa/          agent (voice), phone (taps), band, motion + fall, ring, server
+dashboard/      grandparent screen (Moo) + family screen
+halo-app/       Android app: the halo glow + Moopa's voice on the phone speaker
+video/          the demo film (HyperFrames)
 ```
+</details>
 
----
-
-## Privacy
-
-- The microphone only listens **after a double-tap**. It's never always on.
-- Motion data is checked **on the laptop**. Only a short summary of numbers goes to Gemini when a fall is suspected.
-- Keys live in `.env`, which is **never** uploaded to GitHub.
-
----
-
-## Built at a Y Combinator hackathon, 14 Nov 2026
-
-With: **Vexo Open band**, **Deepgram + Pipecat**, **OpenAI**, **Google Gemini + Veo (Vertex AI)**, **TypeSafe System One**, **Phone Harness**, **ElevenLabs** (music in the film).
-
-**What's next:** a real live heart-rate stream from the ring on stage, more apps (doctor appointments, groceries, taxis), and a pilot with the home-care agencies who signed up.
+**Built solo in one day at VexoHacks, a Y Combinator hackathon in SF, 14 Nov 2026**, with the Vexo Open band, Deepgram + Pipecat, OpenAI, Google Gemini and Veo, TypeSafe System One, Phone Harness and ElevenLabs.
