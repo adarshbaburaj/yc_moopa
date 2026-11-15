@@ -1,4 +1,4 @@
-# Moopa
+# Moopa: agentic wearables for the elderly
 
 ### Let's make ageing more independent.
 
